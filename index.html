@@ -703,7 +703,10 @@ function ApiKeyModal({onSave, currentApiKey}){
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
       <div style={{background:"#fff",borderRadius:14,padding:"32px",maxWidth:460,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
-        <div style={{fontSize:32,marginBottom:12}}>🔑</div>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
+          <div style={{fontSize:32}}>🔑</div>
+          <button onClick={()=>onSave(null,null,"close")} style={{background:"none",border:"none",cursor:"pointer",fontSize:22,color:"#9ca3af",lineHeight:1,padding:4}}>✕</button>
+        </div>
         <h2 style={{fontSize:18,fontWeight:700,marginBottom:4}}>Anthropic API Key</h2>
         <p style={{fontSize:13,color:"#6b7280",marginBottom:20,lineHeight:1.6}}>
           Stored securely in the cloud — works on all devices automatically.
@@ -808,7 +811,9 @@ function App(){
   const askDup=(nb,eb)=>new Promise(r=>setDupModal({nb,eb,r}));
   const setCol=(key,w)=>setCols(p=>({...p,[key]:w}));
 
-  const handleApiKeySave=async(key,adminPw)=>{
+  const handleApiKeySave=async(key,adminPw,action)=>{
+    // Just close the modal
+    if(action==="close"){ setShowKeyModal(false); return; }
     // Verify admin password before saving
     const pw=loadPasswords();
     if(adminPw!==pw.admin){
