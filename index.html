@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CafeAmrut Bill Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+<script>window.TEMPLATE_B64 = "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21IVW6psS1VsqbItVbGlyrZUxZYq21IVW6psS1VsqbItVbGlyrZUxZYq21IVW6psS1VsqbItVbGlyrZUxZYq21IVW6psS1VsqbItVbGlOuO9bvpitxlvdtNXu814t5u+3G3G29309W4z3u+mL3ib8YY3fcXbnHe86UveOFV9zduM97zpi95mvOlNX/XGtlTFlirbUhVbqmxLVWypsi1VsaXKtlTFlirbUhVbqmxLVWypsi1VsaXKtlTFlirbUhVbqmxLVWypsi1VsaXKtlTFlirbUhVbqmxLVWypsi1VsaXKtlTFlirbUhVbqmxLVWypsi1VsaXKtlTFlirbUhVbqmxLVWypsi1VsaXKtlTFlirbUhVbqmxLVWypsi1VsaXKtlTFlirbUhVbqmxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsmtmRsSya2ZGxLJrZkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsSy625GxLLrbkbEsutuRsS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21ITW2psS01sqbEtNbGlxrbUxJYa21IT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";
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;min-height:100vh}
+input,select{font-family:inherit;outline:none}
+button{font-family:inherit}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#f1f5f9}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+.cbm-table{border-collapse:collapse;table-layout:fixed;font-size:13px;width:100%}
+.cbm-table th{background:#f9fafb;position:relative}
+.cbm-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-bottom:1px solid #f3f4f6;border-right:1px solid #e5e7eb}
+.cbm-table thead tr{border-bottom:1px solid #e5e7eb}
+.cbm-table tbody tr:hover td{background:#f0f9ff!important}
+.cbm-table tbody tr.sel td{background:#fef2f2!important}
+.resize-handle{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:10;display:flex;align-items:center;justify-content:center}
+.resize-handle:hover .rh-line,.resize-handle:active .rh-line{background:#3b82f6!important}
+.inline-edit-input{border:1px solid #93c5fd;border-radius:4px;padding:3px 6px;font-size:12px;width:100%;background:#fff;font-family:inherit;outline:none;}
+.inline-edit-input:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.15)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadein{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.fade{animation:fadein .2s ease}
+</style>
+</head>
+<body>
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui,sans-serif;background:#f8fafc;flex-direction:column;gap:16px"><div style="width:40px;height:40px;border:4px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite"></div><p style="color:#6b7280;font-size:14px">Loading CafeAmrut Bill Manager…</p></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></div>
+
+<script>
+// Extend Babel transform timeout
+if(window.Babel) { Babel.registerPreset && Babel.registerPreset; }
+</script>
+<script type="text/babel" data-presets="react">
+const {useState,useEffect,useRef,useCallback} = React;
+
+const SUPABASE_URL = "https://fsdfdahorlkrlqbcrhxv.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzZGZkYWhvcmxrcmxxYmNyaHh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMjA2NTUsImV4cCI6MjA5ODY5NjY1NX0.4as_pO1Zj91KkkDbAalUbz12dQzWeOLUAUGd7xeIrLA";
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const API_KEY_LS = "cafe-bill-api-key-v1";
+const AUTH_LS = "cafe-bill-auth-v1";
+// ── DEFAULT CREDENTIALS (stored in Supabase settings table) ──
+const DEFAULT_PASSWORDS = { admin: "cafeamrut@admin", viewer: "cafeamrut@view" };
+
+// Load passwords from Supabase (async)
+const loadPasswordsFromDB = async () => {
+  try {
+    // 3 second timeout — if Supabase unreachable, fall back to defaults immediately
+    const timeout = new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),3000));
+    const query = sbClient.from("settings").select("value").eq("key","passwords").single();
+    const {data,error} = await Promise.race([query, timeout]);
+    if(error || !data) return {...DEFAULT_PASSWORDS};
+    return JSON.parse(data.value);
+  } catch { return {...DEFAULT_PASSWORDS}; }
+};
+
+// Save passwords to Supabase
+const savePasswordsToDB = async (p) => {
+  try {
+    await sbClient.from("settings").upsert({key:"passwords", value:JSON.stringify(p)});
+  } catch(e) { console.error("Could not save passwords:", e); }
+};
+
+// Sync: load from DB then cache locally for this session
+let _cachedPasswords = null;
+const loadPasswords = () => _cachedPasswords || {...DEFAULT_PASSWORDS};
+const savePasswords = async (p) => {
+  _cachedPasswords = p;
+  await savePasswordsToDB(p);
+};
+
+const getUsers = () => {
+  const pw = loadPasswords();
+  return [
+    { username:"admin",  password:pw.admin,  role:"admin"  },
+    { username:"viewer", password:pw.viewer, role:"viewer" },
+  ];
+};
+
+const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
+const DEFAULT_COLS = {thumb:70,chk:44,sr:44,vendor:160,type:100,invoice:120,amount:105,status:95,date:105,remarks:140,actions:85};
+
+const toBase64 = f => new Promise((ok,fail)=>{const r=new FileReader();r.onload=()=>ok(r.result.split(",")[1]);r.onerror=fail;r.readAsDataURL(f);});
+const toDataUrl = f => new Promise((ok,fail)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=fail;r.readAsDataURL(f);});
+const fmtDate = d=>{if(!d)return"";const dt=new Date(d);return isNaN(dt)?d:dt.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});};
+const isDup=(b,list)=>list.find(x=>{const i=(x.invoiceNumber||"").trim().toLowerCase(),ni=(b.invoiceNumber||"").trim().toLowerCase();return i&&i===ni&&String(x.totalAmount||"").trim()===String(b.totalAmount||"").trim();})||null;
+
+// Resize thumbnail to small jpeg dataurl to keep storage small (~5-10KB)
+const makeThumbnail = (file) => new Promise((ok)=>{
+  if(file.type==="application/pdf"){ok(null);return;}
+  const img=new Image();
+  const url=URL.createObjectURL(file);
+  img.onload=()=>{
+    const canvas=document.createElement("canvas");
+    const max=120;
+    const ratio=Math.min(max/img.width,max/img.height);
+    canvas.width=img.width*ratio;canvas.height=img.height*ratio;
+    canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+    URL.revokeObjectURL(url);
+    ok(canvas.toDataURL("image/jpeg",0.7));
+  };
+  img.onerror=()=>{URL.revokeObjectURL(url);ok(null);};
+  img.src=url;
+});
+
+// DB helpers
+const dbLoad = async()=>{
+  const {data,error}=await sbClient.from("bills").select("*").order("uploaded_at",{ascending:true});
+  if(error)throw error;
+  return(data||[]).map((r,i)=>({
+    id:r.id,srNo:i+1,vendorName:r.vendor_name||"",vendorType:r.vendor_type||"",
+    invoiceNumber:r.invoice_number||"",date:r.date||"",totalAmount:r.total_amount||"",
+    paymentStatus:r.payment_status||"Pending",remarks:r.remarks||"",thumbnail:r.thumbnail||null
+  }));
+};
+const dbInsert=async(b)=>{
+  const {error}=await sbClient.from("bills").insert({
+    id:b.id,vendor_name:b.vendorName,vendor_type:b.vendorType,
+    invoice_number:b.invoiceNumber,date:b.date,total_amount:String(b.totalAmount),
+    payment_status:b.paymentStatus,remarks:b.remarks,thumbnail:b.thumbnail||null
+  });
+  if(error)throw error;
+};
+const dbUpdate=async(b)=>{
+  const {error}=await sbClient.from("bills").update({
+    vendor_name:b.vendorName,vendor_type:b.vendorType,invoice_number:b.invoiceNumber,
+    date:b.date,total_amount:String(b.totalAmount),payment_status:b.paymentStatus,remarks:b.remarks
+  }).eq("id",b.id);
+  if(error)throw error;
+};
+const dbDelete=async(ids)=>{
+  const {error}=await sbClient.from("bills").delete().in("id",Array.isArray(ids)?ids:[ids]);
+  if(error)throw error;
+};
+
+// Thumbnail with click to zoom
+function Thumb({src}){
+  const [zoom,setZoom]=useState(false);
+  if(!src) return <td style={{padding:"6px 8px",textAlign:"center",borderRight:"1px solid #e5e7eb"}}>
+    <div style={{width:44,height:44,background:"#f3f4f6",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",fontSize:18}}>🧾</div>
+  </td>;
+  return(
+    <td style={{padding:"6px 8px",textAlign:"center",borderRight:"1px solid #e5e7eb",overflow:"visible"}}>
+      <img src={src} onClick={()=>setZoom(true)}
+        style={{width:44,height:44,objectFit:"cover",borderRadius:6,cursor:"pointer",border:"1px solid #e5e7eb",display:"block",margin:"0 auto"}}
+        title="Click to zoom"/>
+      {zoom&&<div onClick={()=>setZoom(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,cursor:"zoom-out"}}>
+        <img src={src} style={{maxWidth:"90vw",maxHeight:"90vh",borderRadius:10,boxShadow:"0 20px 60px rgba(0,0,0,0.5)"}}/>
+        <div style={{position:"absolute",top:20,right:24,color:"#fff",fontSize:28,cursor:"pointer",fontWeight:300}}>✕</div>
+      </div>}
+    </td>
+  );
+}
+
+// Cell with tooltip
+function TipCell({value,style={}}){
+  const [tip,setTip]=useState(false);
+  if(!value||value==="—") return <td style={{padding:"10px 10px",color:"#d1d5db",borderRight:"1px solid #e5e7eb",...style}}>—</td>;
+  return(
+    <td style={{padding:"10px 10px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",position:"relative",cursor:"default",borderRight:"1px solid #e5e7eb",...style}}
+      onMouseEnter={()=>setTip(true)} onMouseLeave={()=>setTip(false)}>
+      {value}
+      {tip&&<div style={{position:"absolute",bottom:"calc(100% + 6px)",left:0,background:"#1f2937",color:"#fff",fontSize:11,padding:"5px 9px",borderRadius:6,whiteSpace:"nowrap",zIndex:9999,pointerEvents:"none",boxShadow:"0 4px 12px rgba(0,0,0,0.3)",maxWidth:300}}>
+        {value}
+        <div style={{position:"absolute",bottom:-4,left:14,width:8,height:8,background:"#1f2937",transform:"rotate(45deg)"}}/>
+      </div>}
+    </td>
+  );
+}
+
+// Inline editable cell — click to edit, Enter/blur to save
+function EditCell({value, onSave, type="text", style={}}){
+  const [editing,setEditing]=useState(false);
+  const [val,setVal]=useState(value||"");
+  const inputRef=useRef();
+  useEffect(()=>{setVal(value||"");},[value]);
+  useEffect(()=>{if(editing&&inputRef.current)inputRef.current.focus();},[editing]);
+
+  const commit=()=>{setEditing(false);if(val!==value)onSave(val);};
+  const cancel=()=>{setEditing(false);setVal(value||"");};
+
+  if(editing) return(
+    <td style={{padding:"4px 6px",borderRight:"1px solid #e5e7eb",...style}} onClick={e=>e.stopPropagation()}>
+      <input ref={inputRef} className="inline-edit-input" type={type} value={val}
+        onChange={e=>setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e=>{if(e.key==="Enter")commit();if(e.key==="Escape")cancel();}}
+      />
+    </td>
+  );
+
+  const display = type==="date" && val ? fmtDate(val) : val;
+  return(
+    <td onClick={()=>setEditing(true)} title={`Click to edit: ${display||"—"}`}
+      style={{padding:"10px 10px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",position:"relative",cursor:"text",borderRight:"1px solid #e5e7eb",...style}}>
+      <span style={{display:"flex",alignItems:"center",gap:4,minHeight:18}}>
+        <span style={{overflow:"hidden",textOverflow:"ellipsis",flex:1}}>{display||<span style={{color:"#d1d5db"}}>—</span>}</span>
+        <span style={{fontSize:10,color:"#93c5fd",flexShrink:0,opacity:0.7}}>✏</span>
+      </span>
+    </td>
+  );
+}
+
+function SortBadge({label,sort,color="#2563eb",bg="#eff6ff",border="#bfdbfe"}){
+  const arrow=sort==="asc"?"↑":sort==="desc"?"↓":"⇅";
+  return <span style={{display:"inline-flex",alignItems:"center",gap:3,background:sort?bg:"transparent",color:sort?color:"#6b7280",borderRadius:6,padding:"2px 7px",border:sort?`1px solid ${border}`:"none",fontSize:11,fontWeight:600,cursor:"pointer",userSelect:"none"}}>
+    {label} {arrow}
+  </span>;
+}
+
+
+// ── PENDING BILLS DASHBOARD ──
+function PendingDashboard({bills, onClose, onMarkPaid}){
+  const pending = bills.filter(b=>b.paymentStatus==="Pending");
+
+  const grouped = {};
+  pending.forEach(b=>{
+    const key=(b.vendorName||"Unknown Vendor").trim();
+    if(!grouped[key]) grouped[key]={vendorName:key,vendorType:b.vendorType||"",ids:[],totalAmount:0,count:0};
+    grouped[key].ids.push(b.id);
+    grouped[key].totalAmount+=Number(b.totalAmount||0);
+    grouped[key].count++;
+  });
+
+  const rows=Object.values(grouped).sort((a,b)=>b.totalAmount-a.totalAmount);
+  const grandTotal=rows.reduce((s,r)=>s+r.totalAmount,0);
+  const totalBills=pending.length;
+  const fmtAmt=n=>`₹${Number(n).toLocaleString("en-IN",{maximumFractionDigits:2})}`;
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:9999,padding:"20px 16px",overflowY:"auto"}}>
+      <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:760,boxShadow:"0 24px 60px rgba(0,0,0,0.2)",marginTop:20,marginBottom:20}}>
+
+        {/* Header */}
+        <div style={{background:"linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%)",borderRadius:"16px 16px 0 0",padding:"24px 28px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:24}}>📊</span>
+              <div>
+                <h2 style={{fontSize:20,fontWeight:700,color:"#fff",marginBottom:2}}>Pending Bills Dashboard</h2>
+                <p style={{fontSize:12,color:"rgba(255,255,255,0.65)"}}>Vendor-wise summary of all unpaid bills</p>
+              </div>
+            </div>
+            <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:13,fontWeight:600}}>← Back</button>
+          </div>
+          {/* 3 summary cards */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+            {[
+              {l:"Vendors with pending",v:rows.length,icon:"🏪"},
+              {l:"Total pending bills",v:totalBills,icon:"🧾"},
+              {l:"Total amount due",v:fmtAmt(grandTotal),icon:"💰"},
+            ].map(s=>(
+              <div key={s.l} style={{background:"rgba(255,255,255,0.12)",borderRadius:10,padding:"14px 16px",border:"1px solid rgba(255,255,255,0.2)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                  <span style={{fontSize:18}}>{s.icon}</span>
+                  <p style={{fontSize:11,color:"rgba(255,255,255,0.7)"}}>{s.l}</p>
+                </div>
+                <p style={{fontSize:22,fontWeight:700,color:"#fff"}}>{s.v}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Vendor rows */}
+        <div style={{padding:"24px 28px"}}>
+          {rows.length===0?(
+            <div style={{textAlign:"center",padding:"48px 20px"}}>
+              <div style={{fontSize:48,marginBottom:12}}>✅</div>
+              <p style={{fontSize:16,fontWeight:700,color:"#16a34a",marginBottom:4}}>All bills are paid!</p>
+              <p style={{fontSize:13,color:"#9ca3af"}}>No pending payments at the moment.</p>
+            </div>
+          ):(
+            <>
+              {/* Table header */}
+              <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:12,padding:"8px 16px",marginBottom:8}}>
+                {["Vendor Name","Bills Pending","Amount Due"].map((h,i)=>(
+                  <div key={i} style={{fontSize:11,fontWeight:600,color:"#9ca3af",textAlign:i>=2?"right":"left",textTransform:"uppercase",letterSpacing:"0.05em"}}>{h}</div>
+                ))}
+              </div>
+
+              {/* Vendor rows */}
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {rows.map((row,idx)=>(
+                  <div key={row.vendorName} style={{
+                    display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:12,
+                    alignItems:"center",padding:"16px",borderRadius:10,
+                    background:idx%2===0?"#f9fafb":"#fff",
+                    border:"1px solid #e5e7eb"
+                  }}>
+                    {/* Vendor name + type */}
+                    <div>
+                      <p style={{fontWeight:700,fontSize:14,color:"#111",marginBottom:3}}>{row.vendorName}</p>
+                      {row.vendorType&&<span style={{background:"#eff6ff",color:"#2563eb",borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:500}}>{row.vendorType}</span>}
+                    </div>
+                    {/* Bill count */}
+                    <div style={{textAlign:"right"}}>
+                      <span style={{display:"inline-block",background:"#fffbeb",color:"#d97706",border:"1px solid #fcd34d",borderRadius:6,padding:"4px 12px",fontSize:13,fontWeight:700}}>
+                        {row.count} {row.count===1?"bill":"bills"}
+                      </span>
+                    </div>
+                    {/* Amount */}
+                    <div style={{textAlign:"right"}}>
+                      <p style={{fontSize:16,fontWeight:700,color:"#dc2626"}}>{fmtAmt(row.totalAmount)}</p>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+
+              {/* Grand total row */}
+              <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:12,alignItems:"center",padding:"14px 16px",marginTop:12,borderRadius:10,background:"#1e3a5f"}}>
+                <p style={{fontWeight:700,color:"#fff",fontSize:13}}>Grand Total</p>
+                <div style={{textAlign:"right"}}>
+                  <span style={{color:"#fbbf24",fontWeight:700,fontSize:13}}>{totalBills} bills</span>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <p style={{fontSize:17,fontWeight:700,color:"#fbbf24"}}>{fmtAmt(grandTotal)}</p>
+                </div>
+                </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── LOGIN SCREEN ──
+function LoginScreen({onLogin}){
+  const [username,setUsername]=useState("");
+  const [password,setPassword]=useState("");
+  const [error,setError]=useState("");
+  const [show,setShow]=useState(false);
+
+  const handleLogin=async()=>{
+    setError("");
+    // Load latest passwords from Supabase before checking
+    _cachedPasswords = await loadPasswordsFromDB();
+    const user=getUsers().find(u=>u.username===username.trim()&&u.password===password);
+    if(user){onLogin(user);}
+    else{setError("Invalid username or password. Please try again.");}
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#fff",borderRadius:16,padding:"40px 36px",maxWidth:400,width:"100%",boxShadow:"0 24px 64px rgba(0,0,0,0.25)"}}>
+        {/* Logo */}
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontSize:48,marginBottom:8}}>☕</div>
+          <h1 style={{fontSize:22,fontWeight:800,color:"#1e3a5f",marginBottom:4}}>CafeAmrut</h1>
+          <p style={{fontSize:13,color:"#6b7280"}}>Bill Manager · Please sign in</p>
+        </div>
+        {/* Form */}
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:5}}>Username</label>
+          <input type="text" value={username} onChange={e=>{setUsername(e.target.value);setError("");}}
+            onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+            placeholder="Enter username"
+            style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 12px",fontSize:14,boxSizing:"border-box"}}
+            autoFocus/>
+        </div>
+        <div style={{marginBottom:6}}>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:5}}>Password</label>
+          <div style={{position:"relative"}}>
+            <input type={show?"text":"password"} value={password} onChange={e=>{setPassword(e.target.value);setError("");}}
+              onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+              placeholder="Enter password"
+              style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 40px 10px 12px",fontSize:14,boxSizing:"border-box"}}/>
+            <button onClick={()=>setShow(s=>!s)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:16,color:"#9ca3af"}}>{show?"🙈":"👁"}</button>
+          </div>
+        </div>
+        {error&&<div style={{fontSize:12,color:"#dc2626",background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:6,padding:"8px 10px",marginBottom:12}}>{error}</div>}
+        <button onClick={handleLogin} style={{width:"100%",background:"#2563eb",color:"#fff",border:"none",borderRadius:8,padding:"12px",fontSize:15,fontWeight:700,cursor:"pointer",marginTop:8}}>
+          Sign In
+        </button>
+        <div style={{marginTop:20,padding:"12px",background:"#f8fafc",borderRadius:8,border:"1px solid #e5e7eb"}}>
+          <p style={{fontSize:11,color:"#9ca3af",textAlign:"center",marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em"}}>Access Levels</p>
+          <div style={{display:"flex",gap:8}}>
+            <div style={{flex:1,textAlign:"center",padding:"6px",background:"#eff6ff",borderRadius:6}}>
+              <p style={{fontSize:11,fontWeight:700,color:"#2563eb"}}>Admin</p>
+              <p style={{fontSize:10,color:"#6b7280"}}>Upload · Edit · Delete</p>
+            </div>
+            <div style={{flex:1,textAlign:"center",padding:"6px",background:"#f0fdf4",borderRadius:6}}>
+              <p style={{fontSize:11,fontWeight:700,color:"#16a34a"}}>Viewer</p>
+              <p style={{fontSize:10,color:"#6b7280"}}>View · Download only</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── BULK IMPORT MODAL ──
+function BulkImportModal({onClose,onImport,onDownloadTemplate}){
+  const [file,setFile]=useState(null);
+  const [result,setResult]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const fileRef=useRef();
+
+  const handleImport=async()=>{
+    if(!file)return;
+    setLoading(true);setResult(null);
+    await onImport(file,(res)=>{setResult(res);setLoading(false);});
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
+      <div style={{background:"#fff",borderRadius:14,padding:"28px",maxWidth:580,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.3)",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:24}}>📊</span>
+            <h2 style={{fontSize:17,fontWeight:700}}>Bulk Import from Excel</h2>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#9ca3af"}}>✕</button>
+        </div>
+
+        {/* Step 1 - Template */}
+        <div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:10,padding:"14px 16px",marginBottom:16}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+            <div>
+              <p style={{fontWeight:700,fontSize:13,color:"#15803d",marginBottom:2}}>Step 1 — Download the Template</p>
+              <p style={{fontSize:12,color:"#6b7280"}}>Fill it with your bill data, then import it below. Do not change the column headers.</p>
+            </div>
+            <button onClick={onDownloadTemplate}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#16a34a",color:"#fff",border:"none",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer",flexShrink:0}}>
+              ⬇ Download Template
+            </button>
+          </div>
+        </div>
+
+        {/* Step 2 - Upload */}
+        <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:"14px 16px",marginBottom:16}}>
+          <p style={{fontWeight:700,fontSize:13,color:"#1d4ed8",marginBottom:10}}>Step 2 — Upload Filled Excel</p>
+          <div onClick={()=>fileRef.current?.click()}
+            style={{border:"2px dashed #93c5fd",borderRadius:8,padding:"20px",textAlign:"center",cursor:"pointer",background:"#fff",transition:"all .15s"}}>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{display:"none"}}
+              onChange={e=>{setFile(e.target.files[0]);setResult(null);e.target.value="";}}/>
+            {file
+              ? <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <span style={{fontSize:20}}>📄</span>
+                  <span style={{fontSize:13,fontWeight:600,color:"#2563eb"}}>{file.name}</span>
+                  <button onClick={e=>{e.stopPropagation();setFile(null);setResult(null);}} style={{background:"none",border:"none",cursor:"pointer",color:"#9ca3af",fontSize:16}}>✕</button>
+                </div>
+              : <>
+                  <p style={{fontSize:14,fontWeight:600,marginBottom:4}}>📎 Click to browse or drop Excel file here</p>
+                  <p style={{fontSize:12,color:"#9ca3af"}}>.xlsx or .xls files only</p>
+                </>
+            }
+          </div>
+          <button onClick={handleImport} disabled={!file||loading}
+            style={{width:"100%",marginTop:12,padding:"10px",background:file&&!loading?"#2563eb":"#9ca3af",color:"#fff",border:"none",borderRadius:7,fontSize:14,fontWeight:600,cursor:file&&!loading?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            {loading
+              ? <><div style={{width:16,height:16,border:"2px solid #fff",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .7s linear infinite"}}/> Importing…</>
+              : "⬆ Import Bills"}
+          </button>
+        </div>
+
+        {/* Results */}
+        {result&&(
+          <div className="fade">
+            {/* Sample note — shown as info, not error */}
+            {result.sampleNote&&(
+              <div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:10,padding:"10px 16px",marginBottom:10,fontSize:13,color:"#15803d",fontWeight:500}}>
+                {result.sampleNote}
+              </div>
+            )}
+            {result.infoMsg&&(
+              <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"10px 16px",marginBottom:10,fontSize:13,color:"#92400e"}}>
+                {result.infoMsg}
+              </div>
+            )}
+            {/* Success summary */}
+            {result.imported>0&&(
+              <div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:10,padding:"14px 16px",marginBottom:12}}>
+                <p style={{fontWeight:700,color:"#15803d",fontSize:14,marginBottom:4}}>
+                  ✅ {result.imported} bill{result.imported>1?"s":""} imported successfully!
+                </p>
+                <p style={{fontSize:12,color:"#6b7280"}}>New bills are highlighted in green in the table for a few seconds.</p>
+              </div>
+            )}
+            {/* Errors */}
+            {result.errors.length>0&&(
+              <div style={{background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:10,padding:"14px 16px"}}>
+                <p style={{fontWeight:700,color:"#dc2626",fontSize:13,marginBottom:10}}>
+                  ⚠️ {result.errors.length} issue{result.errors.length>1?"s":""} found — these rows were skipped:
+                </p>
+                <div style={{maxHeight:200,overflowY:"auto"}}>
+                  {result.errors.map((err,i)=>(
+                    <div key={i} style={{fontSize:12,color:"#7f1d1d",background:"#fff",border:"1px solid #fecaca",borderRadius:6,padding:"8px 10px",marginBottom:6,lineHeight:1.5}}>
+                      {err}
+                    </div>
+                  ))}
+                </div>
+                <p style={{fontSize:11,color:"#9ca3af",marginTop:10}}>Fix the issues in your Excel file and re-import. Already imported rows won't be duplicated.</p>
+              </div>
+            )}
+            {result.imported===0&&result.errors.length===0&&(
+              <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"14px 16px"}}>
+                <p style={{fontWeight:700,color:"#92400e",fontSize:13}}>⚠️ No bills were imported. The file may be empty.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── REMARKS CELL ──
+function RemarksCell({value, onSave, isAdmin}){
+  const [hovered,setHovered]=useState(false);
+  const [editing,setEditing]=useState(false);
+  const [val,setVal]=useState(value||"");
+  const inputRef=useRef();
+  useEffect(()=>{setVal(value||"");},[value]);
+  useEffect(()=>{if(editing&&inputRef.current)inputRef.current.focus();},[editing]);
+
+  const commit=()=>{setEditing(false);setHovered(false);if(val!==(value||""))onSave(val);};
+  const cancel=()=>{setEditing(false);setVal(value||"");};
+  const hasRemark=value&&value.trim().length>0;
+
+  if(editing&&isAdmin) return(
+    <td style={{padding:"4px 6px",borderRight:"1px solid #e5e7eb",overflow:"visible"}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+        <input ref={inputRef} value={val} onChange={e=>setVal(e.target.value)}
+          onBlur={commit} onKeyDown={e=>{if(e.key==="Enter")commit();if(e.key==="Escape")cancel();}}
+          placeholder="Add a remark…"
+          style={{flex:1,border:"1px solid #93c5fd",borderRadius:4,padding:"4px 7px",fontSize:12,outline:"none",minWidth:0}}/>
+        <button onClick={commit} style={{background:"#2563eb",color:"#fff",border:"none",borderRadius:4,padding:"3px 7px",fontSize:11,cursor:"pointer",flexShrink:0}}>✓</button>
+      </div>
+    </td>
+  );
+
+  return(
+    <td onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>{setHovered(false);}}
+      onClick={()=>isAdmin&&setEditing(true)}
+      style={{padding:"10px 10px",textAlign:"center",borderRight:"1px solid #e5e7eb",position:"relative",cursor:isAdmin?"pointer":"default",overflow:"visible"}}>
+      {/* Icon */}
+      <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:28,height:28,borderRadius:6,
+        background:hasRemark?(hovered?"#fef9c3":"#fefce8"):(hovered&&isAdmin?"#f0f9ff":"transparent"),
+        border:hasRemark?"1px solid #fde68a":(hovered&&isAdmin?"1px solid #bfdbfe":"1px solid transparent"),
+        transition:"all .15s",fontSize:15}}>
+        {hasRemark ? "💬" : (isAdmin ? (hovered ? "✏️" : "—") : "—")}
+      </div>
+      {/* Hover popup — show remark text */}
+      {hovered&&hasRemark&&(
+        <div style={{position:"absolute",bottom:"calc(100% + 6px)",left:"50%",transform:"translateX(-50%)",
+          background:"#1f2937",color:"#fff",fontSize:12,padding:"8px 12px",borderRadius:8,
+          whiteSpace:"pre-wrap",wordBreak:"break-word",maxWidth:220,minWidth:100,
+          zIndex:9999,pointerEvents:"none",boxShadow:"0 4px 16px rgba(0,0,0,0.3)",lineHeight:1.5,textAlign:"left"}}>
+          {isAdmin&&<p style={{fontSize:10,color:"#9ca3af",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.05em"}}>Remark · click to edit</p>}
+          {value}
+          <div style={{position:"absolute",bottom:-4,left:"50%",transform:"translateX(-50%)",width:8,height:8,background:"#1f2937",rotate:"45deg"}}/>
+        </div>
+      )}
+      {/* Hover popup — admin no remark prompt */}
+      {hovered&&!hasRemark&&isAdmin&&(
+        <div style={{position:"absolute",bottom:"calc(100% + 6px)",left:"50%",transform:"translateX(-50%)",
+          background:"#1f2937",color:"#9ca3af",fontSize:11,padding:"6px 10px",borderRadius:6,
+          whiteSpace:"nowrap",zIndex:9999,pointerEvents:"none",boxShadow:"0 4px 12px rgba(0,0,0,0.25)"}}>
+          Click to add a remark
+          <div style={{position:"absolute",bottom:-4,left:"50%",transform:"translateX(-50%)",width:8,height:8,background:"#1f2937",rotate:"45deg"}}/>
+        </div>
+      )}
+    </td>
+  );
+}
+
+// ── CHANGE PASSWORD MODAL ──
+function ChangePasswordModal({currentUser, onClose, onSuccess}){
+  const [tab,setTab]=useState("admin"); // which user's password to change
+  const [fields,setFields]=useState({admin:{cur:"",newP:"",confirm:""},viewer:{cur:"",newP:"",confirm:""}});
+  const [errors,setErrors]=useState({});
+  const [show,setShow]=useState({});
+  const [saved,setSaved]=useState(null);
+
+  const handleSave=async(role)=>{
+    const f=fields[role];
+    const errs={};
+    // Always load latest from DB to verify current password
+    const latestPw = await loadPasswordsFromDB();
+    _cachedPasswords = latestPw;
+    const currentPw=latestPw[role];
+    if(role==="admin"&&f.cur!==currentPw) errs.cur="Current password is incorrect.";
+    if(!f.newP||f.newP.length<6) errs.newP="New password must be at least 6 characters.";
+    if(f.newP!==f.confirm) errs.confirm="Passwords do not match.";
+    if(Object.keys(errs).length){setErrors(p=>({...p,[role]:errs}));return;}
+    const pw=loadPasswords();
+    pw[role]=f.newP;
+    savePasswords(pw); // async - saves to Supabase
+    setErrors(p=>({...p,[role]:{}}));
+    setFields(p=>({...p,[role]:{cur:"",newP:"",confirm:""}}));
+    setSaved(role);
+    setTimeout(()=>setSaved(null),3000);
+    onSuccess&&onSuccess();
+  };
+
+  const F=(role,field,label,placeholder)=>{
+    const showKey=`${role}-${field}`;
+    return <div style={{marginBottom:10}}>
+      <label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>{label}</label>
+      <div style={{position:"relative"}}>
+        <input type={show[showKey]?"text":"password"} placeholder={placeholder}
+          value={fields[role][field]}
+          onChange={e=>setFields(p=>({...p,[role]:{...p[role],[field]:e.target.value}}))}
+          style={{width:"100%",border:`1px solid ${errors[role]?.[field]?"#fca5a5":"#d1d5db"}`,borderRadius:7,padding:"8px 36px 8px 10px",fontSize:13,boxSizing:"border-box"}}/>
+        <button onClick={()=>setShow(p=>({...p,[showKey]:!p[showKey]}))}
+          style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#9ca3af"}}>
+          {show[showKey]?"🙈":"👁"}
+        </button>
+      </div>
+      {errors[role]?.[field]&&<p style={{fontSize:11,color:"#dc2626",marginTop:3}}>{errors[role][field]}</p>}
+    </div>;
+  };
+
+  const Panel=({role,label,color})=>(
+    <div style={{padding:"16px",background:role==="admin"?"#eff6ff":"#f0fdf4",borderRadius:10,border:`1px solid ${role==="admin"?"#bfdbfe":"#bbf7d0"}`}}>
+      <p style={{fontSize:13,fontWeight:700,color:color,marginBottom:12}}>{label} Password</p>
+      {role==="admin"&&F(role,"cur","Current Admin Password","Enter current password")}
+      {F(role,"newP","New Password","Min. 6 characters")}
+      {F(role,"confirm","Confirm New Password","Re-enter new password")}
+      {saved===role&&<div style={{fontSize:12,color:"#16a34a",background:"#f0fdf4",border:"1px solid #86efac",borderRadius:6,padding:"6px 10px",marginBottom:8}}>✓ Password updated successfully!</div>}
+      <button onClick={()=>handleSave(role)}
+        style={{width:"100%",background:color,color:"#fff",border:"none",borderRadius:7,padding:"9px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+        Update {label} Password
+      </button>
+    </div>
+  );
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
+      <div style={{background:"#fff",borderRadius:14,padding:"28px",maxWidth:480,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.3)",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>🔐 Change Passwords</h2>
+          <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#9ca3af",lineHeight:1}}>✕</button>
+        </div>
+        <p style={{fontSize:12,color:"#9ca3af",marginBottom:18}}>As admin you can update passwords for both accounts. Changes take effect immediately.</p>
+        {/* Tabs */}
+        <div style={{display:"flex",gap:8,marginBottom:16}}>
+          {[{k:"admin",l:"👑 Admin",c:"#2563eb"},{k:"viewer",l:"👁 Viewer",c:"#16a34a"}].map(t=>(
+            <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"8px",borderRadius:7,border:`1.5px solid ${tab===t.k?t.c:"#e5e7eb"}`,background:tab===t.k?(t.k==="admin"?"#eff6ff":"#f0fdf4"):"#fff",color:tab===t.k?t.c:"#6b7280",fontWeight:600,fontSize:13,cursor:"pointer"}}>
+              {t.l}
+            </button>
+          ))}
+        </div>
+        {tab==="admin"
+          ?<Panel role="admin" label="Admin" color="#2563eb"/>
+          :<Panel role="viewer" label="Viewer" color="#16a34a"/>}
+        <p style={{fontSize:11,color:"#9ca3af",marginTop:14,textAlign:"center"}}>Passwords are stored securely in the browser. All users on this device share the same credentials.</p>
+      </div>
+    </div>
+  );
+}
+
+function ApiKeyModal({onSave}){
+  const [key,setKey]=useState(localStorage.getItem(API_KEY_LS)||"");
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
+      <div style={{background:"#fff",borderRadius:14,padding:"32px",maxWidth:460,width:"92%",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+        <div style={{fontSize:32,marginBottom:12}}>🔑</div>
+        <h2 style={{fontSize:18,fontWeight:700,marginBottom:8}}>Anthropic API Key</h2>
+        <p style={{fontSize:13,color:"#6b7280",marginBottom:16,lineHeight:1.6}}>Required to extract bill details using Claude AI. Get a free key at <a href="https://console.anthropic.com" target="_blank" style={{color:"#2563eb"}}>console.anthropic.com</a> → API Keys</p>
+        <input type="password" placeholder="sk-ant-..." value={key} onChange={e=>setKey(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&key.startsWith("sk-")&&onSave(key)}
+          style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 12px",fontSize:14,marginBottom:8,fontFamily:"monospace"}} autoFocus/>
+        <p style={{fontSize:11,color:"#9ca3af",marginBottom:16}}>🔒 Saved only in your browser. Never stored in the database.</p>
+        <button onClick={()=>key.startsWith("sk-")&&onSave(key)} disabled={!key.startsWith("sk-")}
+          style={{width:"100%",background:"#2563eb",color:"#fff",border:"none",borderRadius:8,padding:"11px",fontSize:14,fontWeight:600,cursor:key.startsWith("sk-")?"pointer":"not-allowed",opacity:key.startsWith("sk-")?1:0.5}}>
+          Save & Continue
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const [bills,setBills]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [apiKey,setApiKey]=useState(null);
+  const [showKeyModal,setShowKeyModal]=useState(false);
+  const [prog,setProg]=useState(null);
+  const [editId,setEditId]=useState(null);
+  const [editF,setEditF]=useState({});
+  const [toast,setToast]=useState(null);
+  const [drag,setDrag]=useState(false);
+  const [filter,setFilter]=useState("All");
+  const [search,setSearch]=useState("");
+  const [delTarget,setDelTarget]=useState(null);
+  const [selected,setSelected]=useState(new Set());
+  const [dupModal,setDupModal]=useState(null);
+  const [saveStatus,setSaveStatus]=useState("idle");
+  const [currentUser,setCurrentUser]=useState(null);
+  const isAdmin = currentUser?.role==="admin";
+  const [showPwModal,setShowPwModal]=useState(false);
+  const [showManualForm,setShowManualForm]=useState(false);
+  const emptyManual = ()=>({vendorName:"",vendorType:"",invoiceNumber:"",date:"",totalAmount:"",paymentStatus:"Pending",remarks:""});
+  const [manualForm,setManualForm]=useState(emptyManual());
+  const [manualErrors,setManualErrors]=useState({});
+  const [showImportModal,setShowImportModal]=useState(false);
+  const [newlyImportedIds,setNewlyImportedIds]=useState(new Set());
+  const [showDashboard,setShowDashboard]=useState(false);
+  const [dateSort,setDateSort]=useState("desc");
+  const [vendorSort,setVendorSort]=useState(null);
+  const [amountSort,setAmountSort]=useState(null);
+  const [cols,setCols]=useState(DEFAULT_COLS);
+  const fileRef=useRef();
+  const billsRef=useRef([]);
+  useEffect(()=>{billsRef.current=bills;},[bills]);
+
+  useEffect(()=>{
+    const savedAuth=localStorage.getItem(AUTH_LS);
+    if(savedAuth){try{setCurrentUser(JSON.parse(savedAuth));}catch{}}
+    const savedKey=localStorage.getItem(API_KEY_LS);
+    if(savedKey)setApiKey(savedKey);else setShowKeyModal(true);
+    // Pre-load passwords from Supabase into cache
+    loadPasswordsFromDB().then(pw=>{ _cachedPasswords=pw; });
+    loadBills();
+  },[]);
+
+  const loadBills=async()=>{
+    setLoading(true);
+    try{const data=await dbLoad();setBills(data);billsRef.current=data;}
+    catch(e){notify("Could not load bills from database.","err");}
+    setLoading(false);
+  };
+
+  const notify=(msg,t="ok")=>{setToast({msg,t});setTimeout(()=>setToast(null),4000);};
+  const askDup=(nb,eb)=>new Promise(r=>setDupModal({nb,eb,r}));
+  const setCol=(key,w)=>setCols(p=>({...p,[key]:w}));
+
+  const handleApiKeySave=(key)=>{localStorage.setItem(API_KEY_LS,key);setApiKey(key);setShowKeyModal(false);notify("API key saved!");};
+  const handleLogin=(user)=>{localStorage.setItem(AUTH_LS,JSON.stringify(user));setCurrentUser(user);};
+  const handleLogout=()=>{localStorage.removeItem(AUTH_LS);setCurrentUser(null);};
+
+  const saveManualBill=async()=>{
+    const errs={};
+    if(!manualForm.vendorName.trim()) errs.vendorName="Vendor name is required.";
+    if(!manualForm.totalAmount||isNaN(Number(manualForm.totalAmount))) errs.totalAmount="Valid amount is required.";
+    if(!manualForm.date) errs.date="Date is required.";
+    if(Object.keys(errs).length){setManualErrors(errs);return;}
+    const bill={
+      id:crypto.randomUUID(), srNo:billsRef.current.length+1,
+      vendorName:manualForm.vendorName.trim(), vendorType:manualForm.vendorType,
+      invoiceNumber:manualForm.invoiceNumber.trim(), date:manualForm.date,
+      totalAmount:manualForm.totalAmount, paymentStatus:manualForm.paymentStatus,
+      remarks:manualForm.remarks.trim(), thumbnail:null
+    };
+    // Check duplicate
+    const dup=isDup(bill,billsRef.current);
+    if(dup){
+      const go=await askDup(bill,dup);
+      if(!go) return;
+    }
+    setSaveStatus("saving");
+    try{
+      await dbInsert(bill);
+      const updated=[...billsRef.current,bill];
+      updated.forEach((b,i)=>b.srNo=i+1);
+      setBills(updated);billsRef.current=updated;
+      setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);
+      setManualForm(emptyManual());setManualErrors({});setShowManualForm(false);
+      notify("Bill added successfully!");
+    }catch(e){setSaveStatus("error");notify("Could not save bill.","err");}
+  };
+
+  const extract=async(file,cur)=>{
+    const isImg=file.type.startsWith("image/"),isPdf=file.type==="application/pdf";
+    if(!isImg&&!isPdf)return null;
+    const data=await toBase64(file);
+    const blk=isImg?{type:"image",source:{type:"base64",media_type:file.type,data}}:{type:"document",source:{type:"base64",media_type:"application/pdf",data}};
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,
+        system:"Extract bill details, return ONLY JSON: {vendorName, vendorType (Bakery/Grocery/Beverage/Dairy/Meat & Seafood/Produce/Packaging/Cleaning/Equipment/Utilities/Other), invoiceNumber, date (YYYY-MM-DD), totalAmount (number only)}. Empty string if unclear.",
+        messages:[{role:"user",content:[blk,{type:"text",text:"Extract bill details."}]}]})
+    });
+    if(!res.ok){const e=await res.json();throw new Error(e.error?.message||"API error");}
+    const d=await res.json();
+    const raw=(d.content||[]).map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
+    let p={};try{p=JSON.parse(raw);}catch{}
+    const thumb=await makeThumbnail(file);
+    return{id:crypto.randomUUID(),srNo:cur.length+1,vendorName:p.vendorName||"",vendorType:p.vendorType||"",
+      invoiceNumber:p.invoiceNumber||"",date:p.date||"",totalAmount:p.totalAmount||"",
+      paymentStatus:"Pending",remarks:"",thumbnail:thumb};
+  };
+
+  // ── DOWNLOAD EXCEL TEMPLATE ──
+  const downloadTemplate=()=>{
+    const b64=window.TEMPLATE_B64;
+    if(!b64){alert("Template not available. Please refresh.");return;}
+    const bc=atob(b64),ba=new Uint8Array(bc.length);
+    for(let i=0;i<bc.length;i++)ba[i]=bc.charCodeAt(i);
+    const url=URL.createObjectURL(new Blob([ba],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+    const a=document.createElement("a");a.href=url;a.download="CafeAmrut_BillImport_Template.xlsx";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  };
+
+  
+
+  // ── BULK IMPORT FROM EXCEL ──
+  const handleBulkImport=async(file,onResult)=>{
+    const reader=new FileReader();
+    reader.onload=async(e)=>{
+      try{
+        const wb=XLSX.read(e.target.result,{type:"array"});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws,{defval:"",raw:false});
+
+        if(!rows.length){onResult({errors:["The Excel file is empty. Please use the template and add at least one row."],imported:0,newIds:[]});return;}
+
+        // Auto-skip sample rows
+        const filteredRows=rows.filter(row=>{
+          const vn=String(row["Vendor Name"]||"").toLowerCase();
+          return !(vn.includes("sample")||vn.includes("delete me")||vn.includes("delete this")||vn.includes("★")||vn.includes("reference")||vn.trim()==="");
+        });
+        const skippedSample=rows.length-filteredRows.length;
+        const rows2=filteredRows;
+
+        if(!rows2.length){
+          const msg=skippedSample>0?"Only the sample row was found — it was automatically skipped. Please add your actual bill data and re-import.":"The Excel file is empty. Please use the template and add at least one row.";
+          onResult({errors:[],imported:0,newIds:[],sampleNote:skippedSample>0?`✅ Sample row automatically removed.`:null,infoMsg:msg});return;
+        }
+
+        const required=["Vendor Name","Date","Total Amount"];
+        const firstRow=rows[0];
+        const missingHeaders=required.filter(h=>!(h in firstRow));
+        if(missingHeaders.length>0){onResult({errors:[`Missing required columns: ${missingHeaders.join(", ")}. Please use the downloaded template.`],imported:0,newIds:[]});return;}
+
+        const errors=[];
+        const validBills=[];
+        const currentBills=billsRef.current;
+        let sampleNote = skippedSample>0 ? `✅ Sample row automatically removed — ${skippedSample} template row(s) skipped as expected.` : null;
+
+        rows2.forEach((row,i)=>{
+          const rowNum=i+2;
+          const rowErrors=[];
+          const vendorName=String(row["Vendor Name"]||"").trim();
+          const rawDate=String(row["Date"]||"").trim();
+          const totalAmount=String(row["Total Amount"]||"").trim();
+          const invoiceNumber=String(row["Invoice Number"]||"").trim();
+          const vendorType=String(row["Vendor Type"]||"").trim();
+          const paymentStatus=String(row["Payment Status"]||"Pending").trim();
+          const remarks=String(row["Remarks"]||"").trim();
+
+          // Date might come as serial number from Excel — convert if needed
+          let date=rawDate;
+          if(rawDate&&/^\d+$/.test(rawDate)){
+            // Excel serial date
+            const d=new Date((Number(rawDate)-25569)*86400*1000);
+            date=d.toISOString().slice(0,10);
+          } else if(rawDate&&rawDate.includes("/")){
+            // MM/DD/YYYY or DD/MM/YYYY
+            const parts=rawDate.split("/");
+            if(parts.length===3){
+              const y=parts[2].length===4?parts[2]:"20"+parts[2];
+              date=`${y}-${parts[0].padStart(2,"0")}-${parts[1].padStart(2,"0")}`;
+            }
+          }
+
+          if(!vendorName)rowErrors.push("Vendor Name is empty");
+          if(!totalAmount)rowErrors.push("Total Amount is empty");
+          else if(isNaN(Number(totalAmount)))rowErrors.push(`Total Amount "${totalAmount}" is not a valid number`);
+          if(date&&!/^\d{4}-\d{2}-\d{2}$/.test(date))rowErrors.push(`Date "${rawDate}" is invalid — must be YYYY-MM-DD format`);
+          if(vendorType&&!VENDOR_TYPES.includes(vendorType))rowErrors.push(`Vendor Type "${vendorType}" is invalid`);
+          if(paymentStatus&&!["Pending","Paid"].includes(paymentStatus))rowErrors.push(`Payment Status "${paymentStatus}" must be Pending or Paid`);
+
+          if(rowErrors.length>0){errors.push(`Row ${rowNum} (${vendorName||"unnamed"}): ${rowErrors.join("; ")}`);return;}
+
+          const dupExisting=invoiceNumber&&currentBills.find(b=>(b.invoiceNumber||"").trim().toLowerCase()===invoiceNumber.toLowerCase()&&String(b.totalAmount||"").trim()===totalAmount);
+          if(dupExisting){errors.push(`Row ${rowNum} (${vendorName}): DUPLICATE — Invoice "${invoiceNumber}" with amount ₹${totalAmount} already exists (Bill #${dupExisting.srNo})`);return;}
+
+          const dupInFile=validBills.find(b=>invoiceNumber&&(b.invoiceNumber||"").trim().toLowerCase()===invoiceNumber.toLowerCase()&&String(b.totalAmount||"").trim()===totalAmount);
+          if(dupInFile){errors.push(`Row ${rowNum} (${vendorName}): DUPLICATE within import file — Invoice "${invoiceNumber}" appears more than once`);return;}
+
+          validBills.push({id:crypto.randomUUID(),srNo:currentBills.length+validBills.length+1,vendorName,vendorType,invoiceNumber,date,totalAmount,paymentStatus:["Pending","Paid"].includes(paymentStatus)?paymentStatus:"Pending",remarks,thumbnail:null});
+        });
+
+        if(validBills.length===0&&errors.length>0){onResult({errors,imported:0,newIds:[]});return;}
+
+        setSaveStatus("saving");
+        const newIds=[];
+        let insertedCount=0;
+        for(const bill of validBills){
+          try{await dbInsert(bill);newIds.push(bill.id);insertedCount++;}
+          catch(e){errors.push(`Failed to save "${bill.vendorName}": ${e.message||"database error"}`);}
+        }
+
+        if(insertedCount>0){
+          const updated=[...currentBills,...validBills.slice(0,insertedCount)];
+          updated.forEach((b,i)=>b.srNo=i+1);
+          setBills(updated);billsRef.current=updated;
+          setNewlyImportedIds(new Set(newIds));
+          setTimeout(()=>setNewlyImportedIds(new Set()),8000);
+        }
+        setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);
+        onResult({errors,imported:insertedCount,newIds,sampleNote});
+      }catch(err){onResult({errors:[`Could not read Excel file: ${err.message}. Use the correct template.`],imported:0,newIds:[]});}
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleFiles=async files=>{
+    if(!apiKey){setShowKeyModal(true);return;}
+    const valid=Array.from(files).filter(f=>f.type.startsWith("image/")||f.type==="application/pdf");
+    if(!valid.length){notify("Upload images or PDFs only.","err");return;}
+    setProg({cur:0,total:valid.length,name:""});
+    let cur=[...billsRef.current],added=0,skipped=0,failed=0;
+    for(let i=0;i<valid.length;i++){
+      const f=valid[i];setProg({cur:i+1,total:valid.length,name:f.name});
+      try{
+        const bill=await extract(f,cur);if(!bill){failed++;continue;}
+        const dup=isDup(bill,cur);
+        if(dup){const go=await askDup(bill,dup);if(!go){skipped++;continue;}}
+        setSaveStatus("saving");
+        await dbInsert(bill);
+        setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);
+        cur=[...cur,bill];cur.forEach((x,idx)=>x.srNo=idx+1);
+        setBills([...cur]);billsRef.current=[...cur];added++;
+      }catch(e){console.error(e);failed++;}
+    }
+    setProg(null);
+    const pts=[];if(added)pts.push(`${added} added`);if(skipped)pts.push(`${skipped} skipped`);if(failed)pts.push(`${failed} failed`);
+    notify(pts.join(", ")+".",failed?"warn":"ok");
+  };
+
+  const quickUpdate=async(id,field,value)=>{
+    const bill=billsRef.current.find(b=>b.id===id);if(!bill)return;
+    const updated={...bill,[field]:value};
+    try{await dbUpdate(updated);setBills(p=>p.map(b=>b.id===id?updated:b));billsRef.current=billsRef.current.map(b=>b.id===id?updated:b);setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);}
+    catch(e){notify("Could not save field.","err");}
+  };
+
+  const saveEdit=async()=>{
+    setSaveStatus("saving");
+    try{await dbUpdate(editF);setBills(p=>p.map(b=>b.id===editId?{...editF,srNo:b.srNo,thumbnail:b.thumbnail}:b));setEditId(null);setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);notify("Bill updated.");}
+    catch(e){setSaveStatus("error");notify("Could not save update.","err");}
+  };
+
+  const delOne=async id=>{
+    setSaveStatus("saving");
+    try{await dbDelete(id);const updated=bills.filter(b=>b.id!==id).map((b,i)=>({...b,srNo:i+1}));setBills(updated);billsRef.current=updated;setDelTarget(null);setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);notify("Bill deleted.");}
+    catch(e){setSaveStatus("error");notify("Could not delete.","err");}
+  };
+
+  const delSel=async()=>{
+    const ids=[...selected];const c=ids.length;setSaveStatus("saving");
+    try{await dbDelete(ids);const updated=bills.filter(b=>!selected.has(b.id)).map((b,i)=>({...b,srNo:i+1}));setBills(updated);billsRef.current=updated;setSelected(new Set());setDelTarget(null);setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);notify(`${c} bill${c>1?"s":""} deleted.`);}
+    catch(e){setSaveStatus("error");notify("Could not delete.","err");}
+  };
+
+  const toggleStatus=async id=>{
+    const bill=bills.find(b=>b.id===id);const newStatus=bill.paymentStatus==="Paid"?"Pending":"Paid";
+    try{await dbUpdate({...bill,paymentStatus:newStatus});setBills(p=>p.map(b=>b.id===id?{...b,paymentStatus:newStatus}:b));notify(`Marked as ${newStatus}.`);}
+    catch(e){notify("Could not update status.","err");}
+  };
+
+  const markMultiplePaid=async(ids)=>{
+    setSaveStatus("saving");
+    let count=0;
+    for(const id of ids){
+      const bill=billsRef.current.find(b=>b.id===id);
+      if(bill&&bill.paymentStatus==="Pending"){
+        try{await dbUpdate({...bill,paymentStatus:"Paid"});count++;}catch(e){}
+      }
+    }
+    const updated=billsRef.current.map(b=>ids.includes(b.id)?{...b,paymentStatus:"Paid"}:b);
+    setBills(updated);billsRef.current=updated;
+    setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);
+    notify(`${count} bill${count!==1?"s":""} marked as Paid.`);
+  };
+
+  const toggleSel=id=>setSelected(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
+  const toggleAll=()=>{const ids=new Set(filtered.map(b=>b.id));setSelected(p=>filtered.every(b=>p.has(b.id))?new Set():ids);};
+
+  const dlXlsx=()=>{
+    const rows=bills.map(b=>({"Sr No":b.srNo,"Vendor Name":b.vendorName,"Vendor Type":b.vendorType,"Invoice Number":b.invoiceNumber,"Date":b.date?fmtDate(b.date):"","Total Amount (₹)":b.totalAmount?Number(b.totalAmount).toFixed(2):"","Payment Status":b.paymentStatus,"Remarks":b.remarks}));
+    const ws=XLSX.utils.json_to_sheet(rows);ws["!cols"]=[6,22,16,18,14,18,15,28].map(wch=>({wch}));
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Bills");
+    XLSX.writeFile(wb,`cafe-bills-${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  const filtered=bills.filter(b=>{
+    const ms=filter==="All"||b.paymentStatus===filter;
+    const mq=!search||[b.vendorName,b.invoiceNumber,b.vendorType].some(v=>v?.toLowerCase().includes(search.toLowerCase()));
+    return ms&&mq;
+  }).sort((a,b)=>{
+    if(amountSort){const d=Number(a.totalAmount||0)-Number(b.totalAmount||0);return amountSort==="asc"?d:-d;}
+    if(vendorSort){const va=(a.vendorName||"").toLowerCase(),vb=(b.vendorName||"").toLowerCase();return vendorSort==="asc"?va.localeCompare(vb):vb.localeCompare(va);}
+    const da=a.date?new Date(a.date):new Date(0),db=b.date?new Date(b.date):new Date(0);
+    return dateSort==="asc"?da-db:db-da;
+  });
+
+  const paid=bills.filter(b=>b.paymentStatus==="Paid").reduce((s,b)=>s+Number(b.totalAmount||0),0);
+  const pend=bills.filter(b=>b.paymentStatus==="Pending").reduce((s,b)=>s+Number(b.totalAmount||0),0);
+  const ns=selected.size;
+  const allSel=filtered.length>0&&filtered.every(b=>selected.has(b.id));
+  const saveInd=saveStatus==="saving"?{l:"Saving…",c:"#d97706",bg:"#fffbeb",bd:"#fcd34d"}:saveStatus==="saved"?{l:"✓ Saved",c:"#16a34a",bg:"#f0fdf4",bd:"#86efac"}:saveStatus==="error"?{l:"⚠ Failed",c:"#dc2626",bg:"#fef2f2",bd:"#fca5a5"}:null;
+
+  const makeResize=key=>e=>{
+    e.preventDefault();e.stopPropagation();
+    const sx=e.clientX,sw=cols[key];
+    const mv=ev=>setCol(key,Math.max(40,sw+ev.clientX-sx));
+    const up=()=>{document.removeEventListener("mousemove",mv);document.removeEventListener("mouseup",up);};
+    document.addEventListener("mousemove",mv);document.addEventListener("mouseup",up);
+  };
+
+  const C={
+    redBtn:{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 16px",background:"#dc2626",color:"#fff",border:"none",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"},
+    blueBtn:{background:"#2563eb",color:"#fff",border:"none",borderRadius:7,padding:"8px 14px",fontSize:13,fontWeight:500,cursor:"pointer"},
+    outBtn:{background:"#fff",color:"#374151",border:"1px solid #d1d5db",borderRadius:7,padding:"8px 14px",fontSize:13,cursor:"pointer"},
+    input:{border:"1px solid #d1d5db",borderRadius:7,padding:"8px 10px",fontSize:13,width:"100%",boxSizing:"border-box"},
+    chk:on=>({width:18,height:18,borderRadius:3,border:`2px solid ${on?"#2563eb":"#9ca3af"}`,background:on?"#2563eb":"#fff",display:"inline-flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,userSelect:"none"}),
+    fBtn:on=>({padding:"5px 12px",fontSize:12,cursor:"pointer",borderRadius:6,background:on?"#eff6ff":"#fff",color:on?"#2563eb":"#6b7280",border:`1px solid ${on?"#93c5fd":"#d1d5db"}`}),
+  };
+
+  const TH=({k,label,onClick,align="left"})=>(
+    <th onClick={onClick} style={{width:cols[k],padding:0,position:"relative",cursor:onClick?"pointer":"default",borderRight:"1px solid #e5e7eb",background:"#f9fafb"}}>
+      <div style={{padding:"10px 10px",textAlign:align,fontWeight:600,color:"#6b7280",fontSize:11,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</div>
+      <div className="resize-handle" onMouseDown={makeResize(k)} onClick={e=>e.stopPropagation()}><div className="rh-line" style={{width:2,height:"60%",background:"#d1d5db",borderRadius:1}}/></div>
+    </th>
+  );
+
+  return(
+    <React.Fragment>
+    {!currentUser?<LoginScreen onLogin={handleLogin}/>:
+    <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px",fontFamily:"system-ui,sans-serif",color:"#111"}}>
+      {showKeyModal&&<ApiKeyModal onSave={handleApiKeySave}/>}
+      {showPwModal&&<ChangePasswordModal currentUser={currentUser} onClose={()=>setShowPwModal(false)} onSuccess={()=>{}}/>}
+      {showImportModal&&<BulkImportModal onClose={()=>setShowImportModal(false)} onImport={handleBulkImport} onDownloadTemplate={downloadTemplate}/>}
+      {showDashboard&&<PendingDashboard bills={bills} onClose={()=>setShowDashboard(false)} onMarkPaid={async(ids)=>{await markMultiplePaid(ids);}}/>}
+
+      {/* HEADER */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:10}}>
+        <div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:2}}>
+            <h1 style={{fontSize:22,fontWeight:700}}>CafeAmrut Bill Manager</h1>
+            {saveInd&&<span className="fade" style={{fontSize:11,fontWeight:600,color:saveInd.c,background:saveInd.bg,border:`1px solid ${saveInd.bd}`,borderRadius:20,padding:"2px 10px"}}>{saveInd.l}</span>}
+          </div>
+          <p style={{fontSize:12,color:"#6b7280"}}>{loading?"Loading bills…":bills.length>0?`${bills.length} bill${bills.length>1?"s":""} · synced to cloud`:"Upload vendor bills · AI extracts details automatically"}</p>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          {isAdmin&&ns>0&&<button style={C.redBtn} onClick={()=>setDelTarget("bulk")}>🗑 Delete {ns} selected</button>}
+          <button onClick={()=>setShowDashboard(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#1e3a5f",color:"#fff",border:"none",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            📊 Dashboard
+          </button>
+          <button style={C.outBtn} onClick={dlXlsx} disabled={!bills.length}>⬇ Excel</button>
+          <button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={loadBills} title="Refresh">↻</button>
+          {isAdmin&&<button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={()=>setShowPwModal(true)} title="Change Passwords">🔐</button>}
+          <button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={()=>setShowKeyModal(true)} title="API Key">🔑</button>
+          <div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",background:isAdmin?"#eff6ff":"#f0fdf4",border:`1px solid ${isAdmin?"#93c5fd":"#86efac"}`,borderRadius:7}}>
+            <span style={{fontSize:11,fontWeight:700,color:isAdmin?"#2563eb":"#16a34a"}}>{isAdmin?"👑 Admin":"👁 Viewer"}</span>
+            <span style={{fontSize:11,color:"#9ca3af"}}>({currentUser?.username})</span>
+            <button onClick={handleLogout} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#9ca3af",padding:"0 0 0 4px"}} title="Sign out">⏻</button>
+          </div>
+        </div>
+      </div>
+
+      {/* STATS */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+        {[{l:"Total bills",v:loading?"…":bills.length},{l:"Paid",v:loading?"…":`₹${paid.toLocaleString("en-IN",{maximumFractionDigits:2})}`,c:"#16a34a"},{l:"Pending",v:loading?"…":`₹${pend.toLocaleString("en-IN",{maximumFractionDigits:2})}`,c:"#d97706"}].map(s=>(
+          <div key={s.l} style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:10,padding:"12px 16px"}}>
+            <p style={{fontSize:11,color:"#9ca3af",marginBottom:4}}>{s.l}</p>
+            <p style={{fontSize:20,fontWeight:700,color:s.c||"#111"}}>{s.v}</p>
+          </div>
+        ))}
+      </div>
+
+      {!isAdmin&&<div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,color:"#16a34a",display:"flex",alignItems:"center",gap:8}}>
+        👁 <strong>Viewer mode</strong> — You can view and download bills. Contact admin to make changes.
+      </div>}
+
+      {/* MANUAL ADD FORM */}
+      {isAdmin&&showManualForm&&(
+        <div className="fade" style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:"20px 20px 16px",marginBottom:20,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:20}}>📝</span><h3 style={{fontSize:15,fontWeight:700,color:"#1e3a5f"}}>Add Bill Manually</h3></div>
+            <button onClick={()=>{setShowManualForm(false);setManualForm(emptyManual());setManualErrors({});}} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#9ca3af"}}>✕</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:14}}>
+            <div><label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Vendor Name *</label><input type="text" placeholder="e.g. Royal Bakery" value={manualForm.vendorName} onChange={e=>{setManualForm(p=>({...p,vendorName:e.target.value}));setManualErrors(p=>({...p,vendorName:""}));}} style={{width:"100%",border:`1px solid ${manualErrors.vendorName?"#fca5a5":"#d1d5db"}`,borderRadius:7,padding:"8px 10px",fontSize:13,boxSizing:"border-box"}}/>{manualErrors.vendorName&&<p style={{fontSize:11,color:"#dc2626",marginTop:3}}>{manualErrors.vendorName}</p>}</div>
+            <div><label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Vendor Type</label><select value={manualForm.vendorType} onChange={e=>setManualForm(p=>({...p,vendorType:e.target.value}))} style={{width:"100%",border:"1px solid #d1d5db",borderRadius:7,padding:"8px 10px",fontSize:13,boxSizing:"border-box"}}><option value="">Select type</option>{VENDOR_TYPES.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
+            <div><label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Invoice Number</label><input type="text" placeholder="e.g. INV-2024-001" value={manualForm.invoiceNumber} onChange={e=>setManualForm(p=>({...p,invoiceNumber:e.target.value}))} style={{width:"100%",border:"1px solid #d1d5db",borderRadius:7,padding:"8px 10px",fontSize:13,boxSizing:"border-box"}}/></div>
+            <div><label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Date *</label><input type="date" value={manualForm.date} onChange={e=>{setManualForm(p=>({...p,date:e.target.value}));setManualErrors(p=>({...p,date:""}));}} style={{width:"100%",border:`1px solid ${manualErrors.date?"#fca5a5":"#d1d5db"}`,borderRadius:7,padding:"8px 10px",fontSize:13,boxSizing:"border-box"}}/>{manualErrors.date&&<p style={{fontSize:11,color:"#dc2626",marginTop:3}}>{manualErrors.date}</p>}</div>
+            <div><label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Total Amount (₹) *</label><input type="number" placeholder="e.g. 1500" value={manualForm.totalAmount} onChange={e=>{setManualForm(p=>({...p,totalAmount:e.target.value}));setManualErrors(p=>({...p,totalAmount:""}));}} style={{width:"100%",border:`1px solid ${manualErrors.totalAmount?"#fca5a5":"#d1d5db"}`,borderRadius:7,padding:"8px 10px",fontSize:13,boxSizing:"border-box"}}/>{manualErrors.totalAmount&&<p style={{fontSize:11,color:"#dc2626",marginTop:3}}>{manualErrors.totalAmount}</p>}</div>
+            <div><label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Payment Status</label><select value={manualForm.paymentStatus} onChange={e=>setManualForm(p=>({...p,paymentStatus:e.target.value}))} style={{width:"100%",border:"1px solid #d1d5db",borderRadius:7,padding:"8px 10px",fontSize:13,boxSizing:"border-box"}}><option>Pending</option><option>Paid</option></select></div>
+            <div style={{gridColumn:"1/-1"}}><label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Remarks</label><input type="text" placeholder="Any notes about this bill…" value={manualForm.remarks} onChange={e=>setManualForm(p=>({...p,remarks:e.target.value}))} style={{width:"100%",border:"1px solid #d1d5db",borderRadius:7,padding:"8px 10px",fontSize:13,boxSizing:"border-box"}}/></div>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <button onClick={saveManualBill} style={{background:"#2563eb",color:"#fff",border:"none",borderRadius:7,padding:"9px 20px",fontSize:13,fontWeight:600,cursor:"pointer"}}>✓ Save Bill</button>
+            <button onClick={()=>{setShowManualForm(false);setManualForm(emptyManual());setManualErrors({});}} style={{background:"#fff",color:"#374151",border:"1px solid #d1d5db",borderRadius:7,padding:"9px 14px",fontSize:13,cursor:"pointer"}}>Cancel</button>
+            <span style={{fontSize:11,color:"#9ca3af"}}>* Required fields</span>
+          </div>
+        </div>
+      )}
+
+      {isAdmin&&!showManualForm&&<div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:8}}>
+        <button onClick={()=>setShowImportModal(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#16a34a",border:"1px solid #86efac",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>📊 Bulk Import Excel</button>
+        <button onClick={()=>setShowManualForm(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#2563eb",border:"1px solid #93c5fd",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>✏️ Add Bill Manually</button>
+      </div>}
+
+      {isAdmin&&<div onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);handleFiles(e.dataTransfer.files);}} onClick={()=>!prog&&fileRef.current?.click()} style={{border:`2px dashed ${drag?"#3b82f6":"#d1d5db"}`,borderRadius:12,padding:"24px 20px",textAlign:"center",cursor:prog?"default":"pointer",background:drag?"#eff6ff":"#fff",marginBottom:20,transition:"all .15s"}}>
+        <input ref={fileRef} type="file" multiple accept="image/*,application/pdf" style={{display:"none"}} onChange={e=>{handleFiles(e.target.files);e.target.value="";}}/>
+        {prog?(<div><p style={{margin:"0 0 10px",fontSize:13,color:"#6b7280"}}>Processing {prog.cur} of {prog.total} — {prog.name}</p><div style={{height:6,background:"#e5e7eb",borderRadius:99,maxWidth:320,margin:"0 auto"}}><div style={{height:"100%",borderRadius:99,background:"#3b82f6",width:`${(prog.cur/prog.total)*100}%`,transition:"width .3s"}}/></div></div>):(<><div style={{fontSize:30,marginBottom:8}}>📎</div><p style={{fontSize:14,fontWeight:600,marginBottom:4}}>Drop bill photos or PDFs here</p><p style={{fontSize:12,color:"#9ca3af"}}>or click to browse · JPG, PNG, PDF · multiple files supported</p></>)}
+      </div>}
+
+      {/* SEARCH + FILTER */}
+      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
+        <input style={{...C.input,flex:1,minWidth:160}} type="text" placeholder="Search vendor, type or invoice…" value={search} onChange={e=>setSearch(e.target.value)}/>
+        {["All","Pending","Paid"].map(s=><button key={s} style={C.fBtn(filter===s)} onClick={()=>setFilter(s)}>{s}</button>)}
+        <button style={{...C.outBtn,fontSize:11,color:"#9ca3af",padding:"5px 10px"}} onClick={()=>setCols(DEFAULT_COLS)}>↺ Cols</button>
+      </div>
+
+      {isAdmin&&filtered.length>0&&(
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:ns>0?"#fef2f2":"#f9fafb",border:`1px solid ${ns>0?"#fca5a5":"#e5e7eb"}`,borderRadius:8,marginBottom:8,flexWrap:"wrap",gap:8}}>
+          <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",userSelect:"none"}} onClick={toggleAll}>
+            <div style={C.chk(allSel)}>{allSel&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}</div>
+            <span style={{fontSize:13,color:ns>0?"#dc2626":"#374151",fontWeight:ns>0?600:400}}>{ns>0?`${ns} bill${ns>1?"s":""} selected`:"Select all"}</span>
+          </label>
+          {ns>0&&<button style={C.redBtn} onClick={()=>setDelTarget("bulk")}>🗑 Delete {ns} selected</button>}
+        </div>
+      )}
+
+      {bills.length>0&&!loading&&(<div style={{fontSize:11,color:"#9ca3af",marginBottom:6,padding:"0 2px"}}>✏ Click any <span style={{color:"#2563eb",fontWeight:600}}>Vendor</span>, <span style={{color:"#2563eb",fontWeight:600}}>Invoice</span>, or <span style={{color:"#2563eb",fontWeight:600}}>Date</span> cell to edit directly · Enter to save, Esc to cancel</div>)}
+
+      {loading?(<div style={{textAlign:"center",padding:"48px",background:"#fff",borderRadius:12,border:"1px solid #e5e7eb"}}><div style={{width:32,height:32,border:"3px solid #3b82f6",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .7s linear infinite",margin:"0 auto 12px"}}/><p style={{fontSize:13,color:"#6b7280"}}>Loading your bills from cloud…</p></div>
+      ):filtered.length===0?(<div style={{textAlign:"center",padding:"48px",color:"#9ca3af",background:"#fff",borderRadius:12,border:"1px solid #e5e7eb"}}><div style={{fontSize:40,marginBottom:10}}>🧾</div><p style={{fontSize:14}}>{bills.length===0?"No bills yet — upload your first bill above.":"No bills match your search."}</p></div>
+      ):(
+        <div style={{overflowX:"auto",border:"1px solid #e5e7eb",borderRadius:12,background:"#fff"}}>
+          <table className="cbm-table">
+            <colgroup>{Object.entries(cols).map(([k,w])=><col key={k} style={{width:w}}/>)}</colgroup>
+            <thead>
+              <tr>
+                <th style={{width:cols.thumb,padding:0,position:"relative",borderRight:"1px solid #e5e7eb",background:"#f9fafb"}}><div style={{padding:"10px 10px",fontWeight:600,color:"#6b7280",fontSize:11}}>Bill</div><div className="resize-handle" onMouseDown={makeResize("thumb")} onClick={e=>e.stopPropagation()}><div className="rh-line" style={{width:2,height:"60%",background:"#d1d5db",borderRadius:1}}/></div></th>
+                {isAdmin&&<th style={{width:cols.chk,padding:"10px 12px",textAlign:"center",borderRight:"1px solid #e5e7eb",position:"relative"}}><div style={C.chk(allSel)} onClick={toggleAll}>{allSel&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}</div><div className="resize-handle" onMouseDown={makeResize("chk")} onClick={e=>e.stopPropagation()}><div className="rh-line" style={{width:2,height:"60%",background:"#d1d5db",borderRadius:1}}/></div></th>}
+                <TH k="sr" label="#"/>
+                <TH k="vendor" label={<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Vendor</span>} onClick={()=>{setVendorSort(s=>s==="asc"?"desc":"asc");setAmountSort(null);}}/>
+                <TH k="type" label="Type"/>
+                <TH k="invoice" label={<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Invoice</span>}/>
+                <TH k="amount" label={<SortBadge label="Amount" sort={amountSort} color="#9333ea" bg="#fdf4ff" border="#d8b4fe"/>} align="right" onClick={()=>{setAmountSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);}}/>
+                <TH k="status" label="Status" align="right"/>
+                <TH k="date" label={<span style={{display:"inline-flex",alignItems:"center",gap:3}}><SortBadge label="✏ Date" sort={dateSort} color="#2563eb" bg="#eff6ff" border="#bfdbfe"/></span>} onClick={()=>{setDateSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);setAmountSort(null);}}/>
+                <TH k="remarks" label="Remarks" align="center"/>
+                <TH k="actions" label="Actions" align="right"/>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((bill,idx)=>{
+                const isSel=selected.has(bill.id);
+                const amtStr=bill.totalAmount?`₹${Number(bill.totalAmount).toLocaleString("en-IN",{maximumFractionDigits:2})}`:"";
+                return(
+                  <React.Fragment key={bill.id}>
+                    <tr className={isSel?"sel":""} style={{background:isSel?"#fef2f2":newlyImportedIds.has(bill.id)?"#dcfce7":idx%2===0?"#fff":"#fafafa",transition:"background 2s ease"}}>
+                      <Thumb src={bill.thumbnail}/>
+                      {isAdmin&&<td style={{padding:"10px 12px",textAlign:"center",borderRight:"1px solid #e5e7eb"}}><div style={C.chk(isSel)} onClick={()=>toggleSel(bill.id)}>{isSel&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}</div></td>}
+                      <TipCell value={String(bill.srNo)} style={{color:"#9ca3af"}}/>
+                      {isAdmin?<EditCell value={bill.vendorName} style={{fontWeight:600}} onSave={v=>quickUpdate(bill.id,"vendorName",v)}/>:<TipCell value={bill.vendorName} style={{fontWeight:600}}/>}
+                      <td style={{padding:"10px 10px",overflow:"hidden",borderRight:"1px solid #e5e7eb"}}>{bill.vendorType?<span title={bill.vendorType} style={{background:"#eff6ff",color:"#2563eb",borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"inline-block",maxWidth:"100%"}}>{bill.vendorType}</span>:<span style={{color:"#d1d5db"}}>—</span>}</td>
+                      {isAdmin?<EditCell value={bill.invoiceNumber} style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"invoiceNumber",v)}/>:<TipCell value={bill.invoiceNumber} style={{color:"#6b7280"}}/>}
+                      <TipCell value={amtStr} style={{textAlign:"right",fontWeight:600}}/>
+                      <td style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}>
+                        <button onClick={()=>toggleStatus(bill.id)} title={`Mark as ${bill.paymentStatus==="Paid"?"Pending":"Paid"}`} style={{display:"inline-flex",alignItems:"center",gap:4,background:bill.paymentStatus==="Paid"?"#f0fdf4":"#fffbeb",color:bill.paymentStatus==="Paid"?"#16a34a":"#d97706",border:`1px solid ${bill.paymentStatus==="Paid"?"#86efac":"#fcd34d"}`,borderRadius:4,padding:"3px 9px",fontSize:11,fontWeight:500,cursor:"pointer"}}>
+                          {bill.paymentStatus==="Paid"?"✓":"⏳"} {bill.paymentStatus}
+                        </button>
+                      </td>
+                      {isAdmin?<EditCell value={bill.date} type="date" style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"date",v)}/>:<TipCell value={bill.date?fmtDate(bill.date):""} style={{color:"#6b7280"}}/>}
+                      <RemarksCell value={bill.remarks} isAdmin={isAdmin} onSave={v=>quickUpdate(bill.id,"remarks",v)}/>
+                      {isAdmin&&<td style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}>
+                        <div style={{display:"flex",gap:4,justifyContent:"flex-end"}}>
+                          <button onClick={()=>editId===bill.id?(setEditId(null),setEditF({})):(setEditId(bill.id),setEditF({...bill}))} title="Full edit" style={{padding:"4px 8px",background:editId===bill.id?"#eff6ff":"transparent",border:"1px solid #e5e7eb",borderRadius:4,cursor:"pointer",fontSize:13}}>{editId===bill.id?"✕":"✏️"}</button>
+                          <button onClick={()=>setDelTarget(bill.id)} title="Delete" style={{padding:"4px 8px",background:"transparent",border:"1px solid #fca5a5",borderRadius:4,cursor:"pointer",fontSize:13}}>🗑</button>
+                        </div>
+                      </td>}
+                    </tr>
+                    {isAdmin&&editId===bill.id&&(
+                      <tr key={`e-${bill.id}`} style={{background:"#eff6ff",borderBottom:"1px solid #e5e7eb"}}>
+                        <td colSpan={10} style={{padding:"14px 16px 18px"}}>
+                          <p style={{fontSize:11,color:"#6b7280",marginBottom:10,fontWeight:500}}>Full edit — all fields</p>
+                          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:12}}>
+                            {[["vendorName","Vendor name","text"],["invoiceNumber","Invoice #","text"],["date","Date","date"],["totalAmount","Amount (₹)","number"]].map(([k,lbl,t])=>(
+                              <div key={k}><label style={{display:"block",fontSize:11,color:"#6b7280",marginBottom:4}}>{lbl}</label><input style={C.input} type={t} value={editF[k]||""} onChange={e=>setEditF(p=>({...p,[k]:e.target.value}))}/></div>
+                            ))}
+                            <div><label style={{display:"block",fontSize:11,color:"#6b7280",marginBottom:4}}>Vendor type</label><select style={C.input} value={editF.vendorType||""} onChange={e=>setEditF(p=>({...p,vendorType:e.target.value}))}><option value="">Select</option>{VENDOR_TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
+                            <div><label style={{display:"block",fontSize:11,color:"#6b7280",marginBottom:4}}>Status</label><select style={C.input} value={editF.paymentStatus||"Pending"} onChange={e=>setEditF(p=>({...p,paymentStatus:e.target.value}))}><option>Pending</option><option>Paid</option></select></div>
+                            <div style={{gridColumn:"1/-1"}}><label style={{display:"block",fontSize:11,color:"#6b7280",marginBottom:4}}>Remarks</label><input style={C.input} type="text" value={editF.remarks||""} onChange={e=>setEditF(p=>({...p,remarks:e.target.value}))} placeholder="Add notes…"/></div>
+                          </div>
+                          <div style={{display:"flex",gap:8}}>
+                            <button style={C.blueBtn} onClick={saveEdit}>Save changes</button>
+                            <button style={C.outBtn} onClick={()=>{setEditId(null);setEditF({});}}>Cancel</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {delTarget&&delTarget!=="bulk"&&(<div className="fade" style={{marginTop:12,padding:16,background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:10}}><p style={{fontWeight:700,color:"#dc2626",marginBottom:4}}>Delete this bill?</p><p style={{fontSize:13,color:"#6b7280",marginBottom:12}}>Permanently removed from cloud.</p><div style={{display:"flex",gap:8}}><button style={C.redBtn} onClick={()=>delOne(delTarget)}>Delete</button><button style={C.outBtn} onClick={()=>setDelTarget(null)}>Cancel</button></div></div>)}
+      {delTarget==="bulk"&&(<div className="fade" style={{marginTop:12,padding:16,background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:10}}><p style={{fontWeight:700,color:"#dc2626",marginBottom:4}}>Delete {ns} selected bill{ns>1?"s":""}?</p><p style={{fontSize:13,color:"#6b7280",marginBottom:12}}>Permanently removed from cloud.</p><div style={{display:"flex",gap:8}}><button style={C.redBtn} onClick={delSel}>Delete {ns}</button><button style={C.outBtn} onClick={()=>setDelTarget(null)}>Cancel</button></div></div>)}
+      {dupModal&&(<div className="fade" style={{marginTop:12,padding:16,background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10}}><p style={{fontWeight:700,marginBottom:4}}>⚠️ Duplicate bill detected</p><p style={{fontSize:13,color:"#6b7280",marginBottom:12}}>This matches an existing bill. Add it anyway?</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>{[{lbl:"Existing",b:dupModal.eb},{lbl:"New",b:dupModal.nb}].map(({lbl,b})=>(<div key={lbl} style={{background:"#fff",borderRadius:6,padding:"10px 12px",border:"1px solid #e5e7eb",fontSize:12}}><p style={{margin:"0 0 6px",fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase"}}>{lbl}</p>{[["Vendor",b.vendorName],["Invoice",b.invoiceNumber],["Date",b.date?fmtDate(b.date):"—"],["Amount",b.totalAmount?`₹${Number(b.totalAmount).toLocaleString("en-IN")}`:"—"]].map(([k,v])=>(<div key={k} style={{marginBottom:3}}><span style={{color:"#9ca3af"}}>{k}: </span><span style={{fontWeight:600}}>{v||"—"}</span></div>))}</div>))}</div><div style={{display:"flex",gap:8}}><button style={{...C.redBtn,background:"#d97706"}} onClick={()=>{setDupModal(null);dupModal.r(true);}}>Add anyway</button><button style={C.outBtn} onClick={()=>{setDupModal(null);dupModal.r(false);}}>Skip</button></div></div>)}
+      {toast&&(<div className="fade" style={{marginTop:12,padding:"10px 16px",background:toast.t==="err"?"#fef2f2":toast.t==="warn"?"#fffbeb":"#f0fdf4",border:`1px solid ${toast.t==="err"?"#fca5a5":toast.t==="warn"?"#fcd34d":"#86efac"}`,borderRadius:8,fontSize:13,fontWeight:600,color:toast.t==="err"?"#dc2626":toast.t==="warn"?"#d97706":"#16a34a"}}>{toast.msg}</div>)}
+    </div>}
+    </React.Fragment>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</body>
+</html>
