@@ -776,26 +776,81 @@ function App(){
     }catch(e){setSaveStatus("error");notify("Could not save bill.","err");}
   };
 
+  // Converts any image to JPEG via canvas — fixes HEIC, HEIF, WEBP, rotation issues on mobile
+  const normalizeImage = (file) => new Promise((ok,fail)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width; canvas.height = img.height;
+      canvas.getContext("2d").drawImage(img,0,0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => {
+        if(!blob) fail(new Error("Could not convert image"));
+        else ok(blob);
+      }, "image/jpeg", 0.92);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); fail(new Error("Could not load image")); };
+    img.src = url;
+  });
+
   const extract=async(file,cur)=>{
-    const isImg=file.type.startsWith("image/"),isPdf=file.type==="application/pdf";
+    const isImg=file.type.startsWith("image/")||file.type==="image/heic"||file.type==="image/heif";
+    const isPdf=file.type==="application/pdf";
     if(!isImg&&!isPdf)return null;
-    const data=await toBase64(file);
-    const blk=isImg?{type:"image",source:{type:"base64",media_type:file.type,data}}:{type:"document",source:{type:"base64",media_type:"application/pdf",data}};
+
+    let sendFile = file;
+    let mediaType = file.type;
+
+    // Normalize all images to JPEG — fixes mobile HEIC, WEBP, rotation issues
+    if(isImg){
+      try{
+        const blob = await normalizeImage(file);
+        sendFile = blob;
+        mediaType = "image/jpeg";
+      }catch(e){
+        // If normalization fails, try with original
+        console.warn("Image normalization failed, using original:", e.message);
+      }
+    }
+
+    const data = await toBase64(sendFile);
+    const blk = isImg
+      ? {type:"image",source:{type:"base64",media_type:mediaType,data}}
+      : {type:"document",source:{type:"base64",media_type:"application/pdf",data}};
+
     const res=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key":apiKey,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body:JSON.stringify({
+        model:"claude-sonnet-4-6",
+        max_tokens:1000,
         system:"Extract bill details, return ONLY JSON: {vendorName, vendorType (Bakery/Grocery/Beverage/Dairy/Meat & Seafood/Produce/Packaging/Cleaning/Equipment/Utilities/Other), invoiceNumber, date (YYYY-MM-DD), totalAmount (number only)}. Empty string if unclear.",
-        messages:[{role:"user",content:[blk,{type:"text",text:"Extract bill details."}]}]})
+        messages:[{role:"user",content:[blk,{type:"text",text:"Extract bill details."}]}]
+      })
     });
-    if(!res.ok){const e=await res.json();throw new Error(e.error?.message||"API error");}
+
+    if(!res.ok){
+      let errMsg = `HTTP ${res.status}`;
+      try{ const e=await res.json(); errMsg=e.error?.message||errMsg; }catch{}
+      throw new Error(errMsg);
+    }
+
     const d=await res.json();
     const raw=(d.content||[]).map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
     let p={};try{p=JSON.parse(raw);}catch{}
     const thumb=await makeThumbnail(file);
-    return{id:crypto.randomUUID(),srNo:cur.length+1,vendorName:p.vendorName||"",vendorType:p.vendorType||"",
+    return{
+      id:crypto.randomUUID(),srNo:cur.length+1,
+      vendorName:p.vendorName||"",vendorType:p.vendorType||"",
       invoiceNumber:p.invoiceNumber||"",date:p.date||"",totalAmount:p.totalAmount||"",
-      paymentStatus:"Pending",remarks:"",thumbnail:thumb};
+      paymentStatus:"Pending",remarks:"",thumbnail:thumb
+    };
   };
 
   // ── DOWNLOAD EXCEL TEMPLATE ──
@@ -915,10 +970,10 @@ function App(){
 
   const handleFiles=async files=>{
     if(!apiKey){setShowKeyModal(true);return;}
-    const valid=Array.from(files).filter(f=>f.type.startsWith("image/")||f.type==="application/pdf");
+    const valid=Array.from(files).filter(f=>f.type.startsWith("image/")||f.type==="application/pdf"||f.type==="image/heic"||f.type==="image/heif"||f.name.match(/\.(heic|heif|jpg|jpeg|png|gif|webp|pdf)$/i));
     if(!valid.length){
-      const types=Array.from(files).map(f=>f.type||"unknown").join(", ");
-      notify(`Upload images or PDFs only. Got: ${types}`,"err");
+      const types=Array.from(files).map(f=>`${f.name}(${f.type||"unknown"})`).join(", ");
+      notify(`Unsupported format: ${types}`,"err");
       return;
     }
     setProg({cur:0,total:valid.length,name:""});
