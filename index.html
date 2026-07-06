@@ -49,11 +49,29 @@ const {useState,useEffect,useRef,useCallback} = React;
 const SUPABASE_URL = "https://fsdfdahorlkrlqbcrhxv.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzZGZkYWhvcmxrcmxxYmNyaHh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMjA2NTUsImV4cCI6MjA5ODY5NjY1NX0.4as_pO1Zj91KkkDbAalUbz12dQzWeOLUAUGd7xeIrLA";
 const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-const API_KEY_LS = "cafe-bill-api-key-v1";
+// API key stored in Supabase settings table (key: "anthropic_api_key")
 const AUTH_LS = "cafe-bill-auth-v1";
 // ── DEFAULT CREDENTIALS (stored in Supabase settings table) ──
 const DEFAULT_PASSWORDS = { admin: "cafeamrut@admin", viewer: "cafeamrut@view" };
 
+// ── API KEY — stored in Supabase, not localStorage ──
+let _cachedApiKey = null;
+
+const loadApiKeyFromDB = async () => {
+  try {
+    const timeout = new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),3000));
+    const query = sbClient.from("settings").select("value").eq("key","anthropic_api_key").single();
+    const {data,error} = await Promise.race([query, timeout]);
+    if(error || !data) return null;
+    return data.value;
+  } catch { return null; }
+};
+
+const saveApiKeyToDB = async (key) => {
+  await sbClient.from("settings").upsert({key:"anthropic_api_key", value:key});
+};
+
+// ── PASSWORDS — stored in Supabase ──
 // Load passwords from Supabase (async)
 const loadPasswordsFromDB = async () => {
   try {
@@ -665,21 +683,67 @@ function ChangePasswordModal({currentUser, onClose, onSuccess}){
   );
 }
 
-function ApiKeyModal({onSave}){
-  const [key,setKey]=useState(localStorage.getItem(API_KEY_LS)||"");
+function ApiKeyModal({onSave, currentApiKey}){
+  const [key,setKey]=useState(currentApiKey||"");
+  const [adminPw,setAdminPw]=useState("");
+  const [showKey,setShowKey]=useState(false);
+  const [showPw,setShowPw]=useState(false);
+  const [error,setError]=useState("");
+  const [saving,setSaving]=useState(false);
+
+  const handleSave=async()=>{
+    if(!key.startsWith("sk-")){setError("API key must start with sk-ant-...");return;}
+    if(!adminPw){setError("Admin password is required.");return;}
+    setSaving(true);setError("");
+    const result=await onSave(key,adminPw);
+    setSaving(false);
+    if(result==="wrong_password"){setError("Incorrect admin password. Please try again.");}
+  };
+
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
-      <div style={{background:"#fff",borderRadius:14,padding:"32px",maxWidth:460,width:"92%",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
+      <div style={{background:"#fff",borderRadius:14,padding:"32px",maxWidth:460,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
         <div style={{fontSize:32,marginBottom:12}}>🔑</div>
-        <h2 style={{fontSize:18,fontWeight:700,marginBottom:8}}>Anthropic API Key</h2>
-        <p style={{fontSize:13,color:"#6b7280",marginBottom:16,lineHeight:1.6}}>Required to extract bill details using Claude AI. Get a free key at <a href="https://console.anthropic.com" target="_blank" style={{color:"#2563eb"}}>console.anthropic.com</a> → API Keys</p>
-        <input type="password" placeholder="sk-ant-..." value={key} onChange={e=>setKey(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&key.startsWith("sk-")&&onSave(key)}
-          style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 12px",fontSize:14,marginBottom:8,fontFamily:"monospace"}} autoFocus/>
-        <p style={{fontSize:11,color:"#9ca3af",marginBottom:16}}>🔒 Saved only in your browser. Never stored in the database.</p>
-        <button onClick={()=>key.startsWith("sk-")&&onSave(key)} disabled={!key.startsWith("sk-")}
-          style={{width:"100%",background:"#2563eb",color:"#fff",border:"none",borderRadius:8,padding:"11px",fontSize:14,fontWeight:600,cursor:key.startsWith("sk-")?"pointer":"not-allowed",opacity:key.startsWith("sk-")?1:0.5}}>
-          Save & Continue
+        <h2 style={{fontSize:18,fontWeight:700,marginBottom:4}}>Anthropic API Key</h2>
+        <p style={{fontSize:13,color:"#6b7280",marginBottom:20,lineHeight:1.6}}>
+          Stored securely in the cloud — works on all devices automatically.
+          Get a key at <a href="https://console.anthropic.com" target="_blank" style={{color:"#2563eb"}}>console.anthropic.com</a>
+        </p>
+
+        {/* API Key field */}
+        <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:5}}>Anthropic API Key</label>
+        <div style={{position:"relative",marginBottom:16}}>
+          <input type={showKey?"text":"password"} placeholder="sk-ant-..." value={key}
+            onChange={e=>{setKey(e.target.value);setError("");}}
+            onKeyDown={e=>e.key==="Enter"&&handleSave()}
+            style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 40px 10px 12px",fontSize:14,fontFamily:"monospace",boxSizing:"border-box"}}
+            autoFocus/>
+          <button onClick={()=>setShowKey(s=>!s)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:16,color:"#9ca3af"}}>
+            {showKey?"🙈":"👁"}
+          </button>
+        </div>
+
+        {/* Admin password field */}
+        <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:5}}>Admin Password <span style={{color:"#9ca3af",fontWeight:400}}>(required to save)</span></label>
+        <div style={{position:"relative",marginBottom:8}}>
+          <input type={showPw?"text":"password"} placeholder="Enter admin password"
+            value={adminPw} onChange={e=>{setAdminPw(e.target.value);setError("");}}
+            onKeyDown={e=>e.key==="Enter"&&handleSave()}
+            style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 40px 10px 12px",fontSize:14,boxSizing:"border-box"}}/>
+          <button onClick={()=>setShowPw(s=>!s)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:16,color:"#9ca3af"}}>
+            {showPw?"🙈":"👁"}
+          </button>
+        </div>
+
+        {error&&<div style={{fontSize:12,color:"#dc2626",background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:6,padding:"8px 10px",marginBottom:12}}>{error}</div>}
+
+        <p style={{fontSize:11,color:"#9ca3af",marginBottom:16}}>
+          ☁️ Saved to Supabase cloud — automatically available on all devices. Only admin can change it.
+        </p>
+
+        <button onClick={handleSave} disabled={saving||!key||!adminPw}
+          style={{width:"100%",background:"#2563eb",color:"#fff",border:"none",borderRadius:8,padding:"11px",fontSize:14,fontWeight:600,cursor:saving||!key||!adminPw?"not-allowed":"pointer",opacity:saving||!key||!adminPw?0.5:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          {saving?<><div style={{width:16,height:16,border:"2px solid #fff",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .7s linear infinite"}}/> Saving to cloud…</>:"☁️ Save API Key"}
         </button>
       </div>
     </div>
@@ -723,8 +787,11 @@ function App(){
   useEffect(()=>{
     const savedAuth=localStorage.getItem(AUTH_LS);
     if(savedAuth){try{setCurrentUser(JSON.parse(savedAuth));}catch{}}
-    const savedKey=localStorage.getItem(API_KEY_LS);
-    if(savedKey)setApiKey(savedKey);else setShowKeyModal(true);
+    // Load API key from Supabase
+    loadApiKeyFromDB().then(key=>{
+      if(key){ _cachedApiKey=key; setApiKey(key); }
+      else setShowKeyModal(true);
+    });
     // Pre-load passwords from Supabase into cache
     loadPasswordsFromDB().then(pw=>{ _cachedPasswords=pw; });
     loadBills();
@@ -741,7 +808,22 @@ function App(){
   const askDup=(nb,eb)=>new Promise(r=>setDupModal({nb,eb,r}));
   const setCol=(key,w)=>setCols(p=>({...p,[key]:w}));
 
-  const handleApiKeySave=(key)=>{localStorage.setItem(API_KEY_LS,key);setApiKey(key);setShowKeyModal(false);notify("API key saved!");};
+  const handleApiKeySave=async(key,adminPw)=>{
+    // Verify admin password before saving
+    const pw=loadPasswords();
+    if(adminPw!==pw.admin){
+      return "wrong_password";
+    }
+    try{
+      await saveApiKeyToDB(key);
+      _cachedApiKey=key;
+      setApiKey(key);
+      setShowKeyModal(false);
+      notify("API key saved to cloud — works on all devices!");
+    }catch(e){
+      notify("Could not save API key.","err");
+    }
+  };
   const handleLogin=(user)=>{localStorage.setItem(AUTH_LS,JSON.stringify(user));setCurrentUser(user);};
   const handleLogout=()=>{localStorage.removeItem(AUTH_LS);setCurrentUser(null);};
 
@@ -1105,7 +1187,7 @@ function App(){
     <React.Fragment>
     {!currentUser?<LoginScreen onLogin={handleLogin}/>:
     <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px",fontFamily:"system-ui,sans-serif",color:"#111"}}>
-      {showKeyModal&&<ApiKeyModal onSave={handleApiKeySave}/>}
+      {showKeyModal&&<ApiKeyModal onSave={handleApiKeySave} currentApiKey={apiKey}/>}
       {showPwModal&&<ChangePasswordModal currentUser={currentUser} onClose={()=>setShowPwModal(false)} onSuccess={()=>{}}/>}
       {showImportModal&&<BulkImportModal onClose={()=>setShowImportModal(false)} onImport={handleBulkImport} onDownloadTemplate={downloadTemplate}/>}
       {showDashboard&&<PendingDashboard bills={bills} onClose={()=>setShowDashboard(false)} onMarkPaid={async(ids)=>{await markMultiplePaid(ids);}}/>}
