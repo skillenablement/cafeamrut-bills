@@ -916,9 +916,13 @@ function App(){
   const handleFiles=async files=>{
     if(!apiKey){setShowKeyModal(true);return;}
     const valid=Array.from(files).filter(f=>f.type.startsWith("image/")||f.type==="application/pdf");
-    if(!valid.length){notify("Upload images or PDFs only.","err");return;}
+    if(!valid.length){
+      const types=Array.from(files).map(f=>f.type||"unknown").join(", ");
+      notify(`Upload images or PDFs only. Got: ${types}`,"err");
+      return;
+    }
     setProg({cur:0,total:valid.length,name:""});
-    let cur=[...billsRef.current],added=0,skipped=0,failed=0;
+    let cur=[...billsRef.current],added=0,skipped=0,failed=0,lastError="";
     for(let i=0;i<valid.length;i++){
       const f=valid[i];setProg({cur:i+1,total:valid.length,name:f.name});
       try{
@@ -930,11 +934,19 @@ function App(){
         setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);
         cur=[...cur,bill];cur.forEach((x,idx)=>x.srNo=idx+1);
         setBills([...cur]);billsRef.current=[...cur];added++;
-      }catch(e){console.error(e);failed++;}
+      }catch(e){
+        console.error(e);
+        lastError=e?.message||String(e)||"Unknown error";
+        failed++;
+      }
     }
     setProg(null);
-    const pts=[];if(added)pts.push(`${added} added`);if(skipped)pts.push(`${skipped} skipped`);if(failed)pts.push(`${failed} failed`);
-    notify(pts.join(", ")+".",failed?"warn":"ok");
+    if(failed>0&&lastError){
+      notify(`Upload failed: ${lastError}`,"err");
+    } else {
+      const pts=[];if(added)pts.push(`${added} added`);if(skipped)pts.push(`${skipped} skipped`);if(failed)pts.push(`${failed} failed`);
+      notify(pts.join(", ")+".",failed?"warn":"ok");
+    }
   };
 
   const quickUpdate=async(id,field,value)=>{
