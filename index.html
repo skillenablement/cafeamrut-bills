@@ -941,7 +941,7 @@ function App(){
   const [editF,setEditF]=useState({});
   const [toast,setToast]=useState(null);
   const [drag,setDrag]=useState(false);
-  const [filter,setFilter]=useState("All");
+  const [filter,setFilter]=useState("Pending");
   const [search,setSearch]=useState("");
   const [delTarget,setDelTarget]=useState(null);
   const [selected,setSelected]=useState(new Set());
@@ -958,6 +958,7 @@ function App(){
   const [newlyImportedIds,setNewlyImportedIds]=useState(new Set());
   const [showDashboard,setShowDashboard]=useState(false);
   const [viewBill,setViewBill]=useState(null);
+  const [showPaidPage,setShowPaidPage]=useState(false);
   const [dateSort,setDateSort]=useState("desc");
   const [vendorSort,setVendorSort]=useState(null);
   const [amountSort,setAmountSort]=useState(null);
@@ -1298,7 +1299,15 @@ function App(){
 
   const toggleStatus=async id=>{
     const bill=bills.find(b=>b.id===id);const newStatus=bill.paymentStatus==="Paid"?"Pending":"Paid";
-    try{await dbUpdate({...bill,paymentStatus:newStatus});setBills(p=>p.map(b=>b.id===id?{...b,paymentStatus:newStatus}:b));notify(`Marked as ${newStatus}.`);}
+    try{
+      await dbUpdate({...bill,paymentStatus:newStatus});
+      setBills(p=>p.map(b=>b.id===id?{...b,paymentStatus:newStatus}:b));
+      if(newStatus==="Paid"){
+        notify(`✓ Marked as Paid — moved to Paid Bills tab.`);
+      } else {
+        notify(`↩ Moved back to Pending Bills.`);
+      }
+    }
     catch(e){notify("Could not update status.","err");}
   };
 
@@ -1328,7 +1337,8 @@ function App(){
   };
 
   const filtered=bills.filter(b=>{
-    const ms=filter==="All"||b.paymentStatus===filter;
+    // Main page shows Pending only; Paid page shows Paid only
+    const ms=showPaidPage ? b.paymentStatus==="Paid" : b.paymentStatus==="Pending";
     const mq=!search||[b.vendorName,b.invoiceNumber,b.vendorType].some(v=>v?.toLowerCase().includes(search.toLowerCase()));
     return ms&&mq;
   }).sort((a,b)=>{
@@ -1406,8 +1416,12 @@ function App(){
 
       {/* STATS */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
-        {[{l:"Total bills",v:loading?"…":bills.length},{l:"Paid",v:loading?"…":`₹${paid.toLocaleString("en-IN",{maximumFractionDigits:2})}`,c:"#16a34a"},{l:"Pending",v:loading?"…":`₹${pend.toLocaleString("en-IN",{maximumFractionDigits:2})}`,c:"#d97706"}].map(s=>(
-          <div key={s.l} style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:10,padding:"12px 16px"}}>
+        {[
+          {l:"Total bills",v:loading?"…":bills.length},
+          {l:"Total Paid",v:loading?"…":`₹${paid.toLocaleString("en-IN",{maximumFractionDigits:2})}`,c:"#16a34a"},
+          {l:"Total Pending",v:loading?"…":`₹${pend.toLocaleString("en-IN",{maximumFractionDigits:2})}`,c:"#d97706"}
+        ].map(s=>(
+          <div key={s.l} style={{background:"#fff",border:`1px solid ${s.c?"#e5e7eb":"#e5e7eb"}`,borderRadius:10,padding:"12px 16px"}}>
             <p style={{fontSize:11,color:"#9ca3af",marginBottom:4}}>{s.l}</p>
             <p style={{fontSize:20,fontWeight:700,color:s.c||"#111"}}>{s.v}</p>
           </div>
@@ -1452,18 +1466,39 @@ function App(){
         {prog?(<div><p style={{margin:"0 0 10px",fontSize:13,color:"#6b7280"}}>Processing {prog.cur} of {prog.total} — {prog.name}</p><div style={{height:6,background:"#e5e7eb",borderRadius:99,maxWidth:320,margin:"0 auto"}}><div style={{height:"100%",borderRadius:99,background:"#3b82f6",width:`${(prog.cur/prog.total)*100}%`,transition:"width .3s"}}/></div></div>):(<><div style={{fontSize:30,marginBottom:8}}>📎</div><p style={{fontSize:14,fontWeight:600,marginBottom:4}}>Drop bill photos or PDFs here</p><p style={{fontSize:12,color:"#9ca3af"}}>or click to browse · JPG, PNG, PDF · multiple files supported</p></>)}
       </div>}
 
-      {/* SEARCH + FILTER */}
-      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
-        <input style={{...C.input,flex:1,minWidth:160}} type="text" placeholder="Search vendor, type or invoice…" value={search} onChange={e=>setSearch(e.target.value)}/>
-        {["All","Pending","Paid"].map(s=><button key={s} style={C.fBtn(filter===s)} onClick={()=>setFilter(s)}>{s}</button>)}
+      {/* PAGE TITLE + SEARCH */}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,flexWrap:"wrap"}}>
+        {/* Page indicator */}
+        <div style={{display:"flex",background:"#f3f4f6",borderRadius:8,padding:3,gap:2,flexShrink:0}}>
+          <button onClick={()=>{setShowPaidPage(false);setSearch("");setSelected(new Set());}}
+            style={{padding:"6px 14px",borderRadius:6,border:"none",fontSize:13,fontWeight:600,cursor:"pointer",
+              background:!showPaidPage?"#fff":"transparent",
+              color:!showPaidPage?"#d97706":"#6b7280",
+              boxShadow:!showPaidPage?"0 1px 4px rgba(0,0,0,0.1)":"none"}}>
+            ⏳ Pending ({bills.filter(b=>b.paymentStatus==="Pending").length})
+          </button>
+          <button onClick={()=>{setShowPaidPage(true);setSearch("");setSelected(new Set());}}
+            style={{padding:"6px 14px",borderRadius:6,border:"none",fontSize:13,fontWeight:600,cursor:"pointer",
+              background:showPaidPage?"#fff":"transparent",
+              color:showPaidPage?"#16a34a":"#6b7280",
+              boxShadow:showPaidPage?"0 1px 4px rgba(0,0,0,0.1)":"none"}}>
+            ✓ Paid ({bills.filter(b=>b.paymentStatus==="Paid").length})
+          </button>
+        </div>
+        <input style={{...C.input,flex:1,minWidth:160}} type="text" placeholder={`Search ${showPaidPage?"paid":"pending"} bills…`} value={search} onChange={e=>setSearch(e.target.value)}/>
         <button style={{...C.outBtn,fontSize:11,color:"#9ca3af",padding:"5px 10px"}} onClick={()=>setCols(DEFAULT_COLS)}>↺ Cols</button>
       </div>
 
       {isAdmin&&filtered.length>0&&(
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:ns>0?"#fef2f2":"#f9fafb",border:`1px solid ${ns>0?"#fca5a5":"#e5e7eb"}`,borderRadius:8,marginBottom:8,flexWrap:"wrap",gap:8}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",
+          background:ns>0?"#fef2f2":showPaidPage?"#f0fdf4":"#f9fafb",
+          border:`1px solid ${ns>0?"#fca5a5":showPaidPage?"#86efac":"#e5e7eb"}`,
+          borderRadius:8,marginBottom:8,flexWrap:"wrap",gap:8}}>
           <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",userSelect:"none"}} onClick={toggleAll}>
             <div style={C.chk(allSel)}>{allSel&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}</div>
-            <span style={{fontSize:13,color:ns>0?"#dc2626":"#374151",fontWeight:ns>0?600:400}}>{ns>0?`${ns} bill${ns>1?"s":""} selected`:"Select all"}</span>
+            <span style={{fontSize:13,color:ns>0?"#dc2626":showPaidPage?"#16a34a":"#374151",fontWeight:ns>0?600:400}}>
+              {ns>0?`${ns} bill${ns>1?"s":""} selected`:`${showPaidPage?"✓ Paid bills":"⏳ Pending bills"} — Select all`}
+            </span>
           </label>
           {ns>0&&<button style={C.redBtn} onClick={()=>setDelTarget("bulk")}>🗑 Delete {ns} selected</button>}
         </div>
@@ -1472,7 +1507,9 @@ function App(){
       {bills.length>0&&!loading&&(<div style={{fontSize:11,color:"#9ca3af",marginBottom:6,padding:"0 2px"}}>✏ Click any <span style={{color:"#2563eb",fontWeight:600}}>Vendor</span>, <span style={{color:"#2563eb",fontWeight:600}}>Invoice</span>, or <span style={{color:"#2563eb",fontWeight:600}}>Date</span> cell to edit directly · Enter to save, Esc to cancel</div>)}
 
       {loading?(<div style={{textAlign:"center",padding:"48px",background:"#fff",borderRadius:12,border:"1px solid #e5e7eb"}}><div style={{width:32,height:32,border:"3px solid #3b82f6",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .7s linear infinite",margin:"0 auto 12px"}}/><p style={{fontSize:13,color:"#6b7280"}}>Loading your bills from cloud…</p></div>
-      ):filtered.length===0?(<div style={{textAlign:"center",padding:"48px",color:"#9ca3af",background:"#fff",borderRadius:12,border:"1px solid #e5e7eb"}}><div style={{fontSize:40,marginBottom:10}}>🧾</div><p style={{fontSize:14}}>{bills.length===0?"No bills yet — upload your first bill above.":"No bills match your search."}</p></div>
+      ):filtered.length===0?(<div style={{textAlign:"center",padding:"48px",color:"#9ca3af",background:"#fff",borderRadius:12,border:"1px solid #e5e7eb"}}><div style={{fontSize:40,marginBottom:10}}>🧾</div><p style={{fontSize:14}}>{showPaidPage
+              ? (bills.filter(b=>b.paymentStatus==="Paid").length===0?"No paid bills yet.":"No paid bills match your search.")
+              : (bills.length===0?"No bills yet — upload your first bill above.":bills.filter(b=>b.paymentStatus==="Pending").length===0?"🎉 All bills are paid! Check the Paid tab.":"No pending bills match your search.")}</p></div>
       ):(
         <div style={{overflowX:"auto",border:"1px solid #e5e7eb",borderRadius:12,background:"#fff"}}>
           <table className="cbm-table">
