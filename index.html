@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>CafeAmrut Bill Manager</title>
+<meta name="description" content="CafeAmrut vendor bill management app"/>
+<meta name="theme-color" content="#1e3a5f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="CafeAmrut"/>
+<link rel="manifest" href="manifest.json"/>
+<!-- Apple touch icon (inline SVG converted) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%231e3a5f'/%3E%3Ctext x='256' y='340' font-size='280' text-anchor='middle' fill='white'%3E%E2%98%95%3C/text%3E%3C/svg%3E"/>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
@@ -1601,5 +1610,16 @@ function App(){
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
+<script>
+// Register service worker for PWA
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").then(
+      reg=>console.log("SW registered:", reg.scope),
+      err=>console.log("SW failed:", err)
+    );
+  });
+}
+</script>
 </body>
 </html>
