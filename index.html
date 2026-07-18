@@ -894,16 +894,16 @@ function ApiKeyModal({onSave, currentApiKey}){
           <div style={{fontSize:32}}>🔑</div>
           <button onClick={()=>onSave(null,null,"close")} style={{background:"none",border:"none",cursor:"pointer",fontSize:22,color:"#9ca3af",lineHeight:1,padding:4}}>✕</button>
         </div>
-        <h2 style={{fontSize:18,fontWeight:700,marginBottom:4}}>Anthropic API Key</h2>
+        <h2 style={{fontSize:18,fontWeight:700,marginBottom:4}}>Google Gemini API Key</h2>
         <p style={{fontSize:13,color:"#6b7280",marginBottom:20,lineHeight:1.6}}>
-          Stored securely in the cloud — works on all devices automatically.
-          Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" style={{color:"#2563eb"}}>aistudio.google.com/apikey</a>
+          Stored securely in the cloud — 100% free via Google Gemini.
+          Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" style={{color:"#2563eb"}}>aistudio.google.com/apikey</a>
         </p>
 
         {/* API Key field */}
-        <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:5}}>Anthropic API Key</label>
+        <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:5}}>Google Gemini API Key</label>
         <div style={{position:"relative",marginBottom:16}}>
-          <input type={showKey?"text":"password"} placeholder="AQ.Ab8... (Google Gemini key)" value={key}
+          <input type={showKey?"text":"password"} placeholder="AQ.Ab8... (Gemini key from AI Studio)" value={key}
             onChange={e=>{setKey(e.target.value);setError("");}}
             onKeyDown={e=>e.key==="Enter"&&handleSave()}
             style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 40px 10px 12px",fontSize:14,fontFamily:"monospace",boxSizing:"border-box"}}
