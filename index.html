@@ -879,7 +879,7 @@ function ApiKeyModal({onSave, currentApiKey}){
   const [saving,setSaving]=useState(false);
 
   const handleSave=async()=>{
-    if(!key.startsWith("sk-")){setError("API key must start with sk-ant-...");return;}
+    if(key.length<10){setError("Please enter a valid Gemini API key.");return;}
     if(!adminPw){setError("Admin password is required.");return;}
     setSaving(true);setError("");
     const result=await onSave(key,adminPw);
@@ -897,13 +897,13 @@ function ApiKeyModal({onSave, currentApiKey}){
         <h2 style={{fontSize:18,fontWeight:700,marginBottom:4}}>Anthropic API Key</h2>
         <p style={{fontSize:13,color:"#6b7280",marginBottom:20,lineHeight:1.6}}>
           Stored securely in the cloud — works on all devices automatically.
-          Get a key at <a href="https://console.anthropic.com" target="_blank" style={{color:"#2563eb"}}>console.anthropic.com</a>
+          Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" style={{color:"#2563eb"}}>aistudio.google.com/apikey</a>
         </p>
 
         {/* API Key field */}
         <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:5}}>Anthropic API Key</label>
         <div style={{position:"relative",marginBottom:16}}>
-          <input type={showKey?"text":"password"} placeholder="sk-ant-..." value={key}
+          <input type={showKey?"text":"password"} placeholder="AQ.Ab8... (Google Gemini key)" value={key}
             onChange={e=>{setKey(e.target.value);setError("");}}
             onKeyDown={e=>e.key==="Enter"&&handleSave()}
             style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 40px 10px 12px",fontSize:14,fontFamily:"monospace",boxSizing:"border-box"}}
@@ -932,7 +932,7 @@ function ApiKeyModal({onSave, currentApiKey}){
         </p>
 
         <button onClick={handleSave} disabled={saving||!key||!adminPw}
-          style={{width:"100%",background:"#2563eb",color:"#fff",border:"none",borderRadius:8,padding:"11px",fontSize:14,fontWeight:600,cursor:saving||!key||!adminPw?"not-allowed":"pointer",opacity:saving||!key||!adminPw?0.5:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          style={{width:"100%",background:"#2563eb",color:"#fff",border:"none",borderRadius:8,padding:"11px",fontSize:14,fontWeight:600,cursor:saving||key.length<10||!adminPw?"not-allowed":"pointer",opacity:saving||key.length<10||!adminPw?0.5:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
           {saving?<><div style={{width:16,height:16,border:"2px solid #fff",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .7s linear infinite"}}/> Saving to cloud…</>:"☁️ Save API Key"}
         </button>
       </div>
@@ -1075,176 +1075,55 @@ function App(){
     const isPdf=file.type==="application/pdf";
     if(!isImg&&!isPdf)return null;
 
-    let sendFile = file;
-    let mediaType = file.type;
-
-    // Normalize all images to JPEG — fixes mobile HEIC, WEBP, rotation issues
+    let sendFile=file, mediaType="image/jpeg";
     if(isImg){
-      try{
-        const blob = await normalizeImage(file);
-        sendFile = blob;
-        mediaType = "image/jpeg";
-      }catch(e){
-        // If normalization fails, try with original
-        console.warn("Image normalization failed, using original:", e.message);
-      }
+      try{ const blob=await normalizeImage(file); sendFile=blob; mediaType="image/jpeg"; }
+      catch(e){ console.warn("normalize failed:",e.message); mediaType=file.type||"image/jpeg"; }
     }
 
-    const data = await toBase64(sendFile);
-    const blk = isImg
-      ? {type:"image",source:{type:"base64",media_type:mediaType,data}}
-      : {type:"document",source:{type:"base64",media_type:"application/pdf",data}};
+    const data=await toBase64(sendFile);
 
-    const res=await fetch("https://api.anthropic.com/v1/messages",{
+    // ── GOOGLE GEMINI API (free tier) ──
+    const prompt="Extract bill details from this image. Return ONLY a valid JSON object with these exact keys: vendorName (string), vendorType (exactly one of: Bakery, Grocery, Beverage, Dairy, Meat & Seafood, Produce, Packaging, Cleaning, Equipment, Utilities, Other), invoiceNumber (string), date (YYYY-MM-DD string), totalAmount (number, no currency symbol, include all taxes), items (array of objects, each with: name, quantity, unit, rate as number, amount as number). Use empty string for unclear text, 0 for unclear numbers, empty array if no line items visible. Return ONLY the JSON, no markdown backticks, no explanation.";
+
+    const geminiUrl="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="+apiKey;
+
+    const res=await fetch(geminiUrl,{
       method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "x-api-key":apiKey,
-        "anthropic-version":"2023-06-01",
-        "anthropic-dangerous-direct-browser-access":"true"
-      },
+      headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
-        model:"claude-sonnet-4-6",
-        max_tokens:1000,
-        system:"Extract bill details, return ONLY valid JSON with these keys: vendorName, vendorType (pick from: Bakery/Grocery/Beverage/Dairy/Meat & Seafood/Produce/Packaging/Cleaning/Equipment/Utilities/Other), invoiceNumber, date (YYYY-MM-DD), totalAmount (number only, including all taxes), items (array of line items, each: {name, quantity, unit, rate, amount}). If a field is unclear use empty string or empty array. Return ONLY valid JSON, no markdown.",
-        messages:[{role:"user",content:[blk,{type:"text",text:"Extract bill details."}]}]
+        contents:[{parts:[
+          {inline_data:{mime_type:isPdf?"application/pdf":mediaType,data}},
+          {text:prompt}
+        ]}],
+        generationConfig:{temperature:0,maxOutputTokens:1000}
       })
     });
 
     if(!res.ok){
-      let errMsg = `HTTP ${res.status}`;
-      try{ const e=await res.json(); errMsg=e.error?.message||errMsg; }catch{}
+      let errMsg="HTTP "+res.status;
+      try{const e=await res.json();errMsg=e.error?.message||errMsg;}catch{}
       throw new Error(errMsg);
     }
 
     const d=await res.json();
-    const raw=(d.content||[]).map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
-    let p={};try{p=JSON.parse(raw);}catch{}
+    const raw=(d.candidates?.[0]?.content?.parts?.[0]?.text||"").replace(/```json|```/g,"").trim();
+    let p={};
+    try{p=JSON.parse(raw);}catch{
+      const m=raw.match(/\{[\s\S]*\}/);
+      if(m)try{p=JSON.parse(m[0]);}catch{}
+    }
+
     const thumb=await makeThumbnail(file);
     return{
       id:crypto.randomUUID(),srNo:cur.length+1,
       vendorName:p.vendorName||"",vendorType:p.vendorType||"",
-      invoiceNumber:p.invoiceNumber||"",date:p.date||"",totalAmount:p.totalAmount||"",
+      invoiceNumber:p.invoiceNumber||"",date:p.date||"",
+      totalAmount:p.totalAmount||"",
       paymentStatus:"Pending",remarks:"",thumbnail:thumb,
       items:Array.isArray(p.items)?p.items:[]
     };
   };
-
-  // ── DOWNLOAD EXCEL TEMPLATE ──
-  const downloadTemplate=()=>{
-    const b64=window.TEMPLATE_B64;
-    if(!b64){alert("Template not available. Please refresh.");return;}
-    const bc=atob(b64),ba=new Uint8Array(bc.length);
-    for(let i=0;i<bc.length;i++)ba[i]=bc.charCodeAt(i);
-    const url=URL.createObjectURL(new Blob([ba],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
-    const a=document.createElement("a");a.href=url;a.download="CafeAmrut_BillImport_Template.xlsx";
-    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  };
-
-  
-
-  // ── BULK IMPORT FROM EXCEL ──
-  const handleBulkImport=async(file,onResult)=>{
-    const reader=new FileReader();
-    reader.onload=async(e)=>{
-      try{
-        const wb=XLSX.read(e.target.result,{type:"array"});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        const rows=XLSX.utils.sheet_to_json(ws,{defval:"",raw:false});
-
-        if(!rows.length){onResult({errors:["The Excel file is empty. Please use the template and add at least one row."],imported:0,newIds:[]});return;}
-
-        // Auto-skip sample rows
-        const filteredRows=rows.filter(row=>{
-          const vn=String(row["Vendor Name"]||"").toLowerCase();
-          return !(vn.includes("sample")||vn.includes("delete me")||vn.includes("delete this")||vn.includes("★")||vn.includes("reference")||vn.trim()==="");
-        });
-        const skippedSample=rows.length-filteredRows.length;
-        const rows2=filteredRows;
-
-        if(!rows2.length){
-          const msg=skippedSample>0?"Only the sample row was found — it was automatically skipped. Please add your actual bill data and re-import.":"The Excel file is empty. Please use the template and add at least one row.";
-          onResult({errors:[],imported:0,newIds:[],sampleNote:skippedSample>0?`✅ Sample row automatically removed.`:null,infoMsg:msg});return;
-        }
-
-        const required=["Vendor Name","Date","Total Amount"];
-        const firstRow=rows[0];
-        const missingHeaders=required.filter(h=>!(h in firstRow));
-        if(missingHeaders.length>0){onResult({errors:[`Missing required columns: ${missingHeaders.join(", ")}. Please use the downloaded template.`],imported:0,newIds:[]});return;}
-
-        const errors=[];
-        const validBills=[];
-        const currentBills=billsRef.current;
-        let sampleNote = skippedSample>0 ? `✅ Sample row automatically removed — ${skippedSample} template row(s) skipped as expected.` : null;
-
-        rows2.forEach((row,i)=>{
-          const rowNum=i+2;
-          const rowErrors=[];
-          const vendorName=String(row["Vendor Name"]||"").trim();
-          const rawDate=String(row["Date"]||"").trim();
-          const totalAmount=String(row["Total Amount"]||"").trim();
-          const invoiceNumber=String(row["Invoice Number"]||"").trim();
-          const vendorType=String(row["Vendor Type"]||"").trim();
-          const paymentStatus=String(row["Payment Status"]||"Pending").trim();
-          const remarks=String(row["Remarks"]||"").trim();
-
-          // Date might come as serial number from Excel — convert if needed
-          let date=rawDate;
-          if(rawDate&&/^\d+$/.test(rawDate)){
-            // Excel serial date
-            const d=new Date((Number(rawDate)-25569)*86400*1000);
-            date=d.toISOString().slice(0,10);
-          } else if(rawDate&&rawDate.includes("/")){
-            // MM/DD/YYYY or DD/MM/YYYY
-            const parts=rawDate.split("/");
-            if(parts.length===3){
-              const y=parts[2].length===4?parts[2]:"20"+parts[2];
-              date=`${y}-${parts[0].padStart(2,"0")}-${parts[1].padStart(2,"0")}`;
-            }
-          }
-
-          if(!vendorName)rowErrors.push("Vendor Name is empty");
-          if(!totalAmount)rowErrors.push("Total Amount is empty");
-          else if(isNaN(Number(totalAmount)))rowErrors.push(`Total Amount "${totalAmount}" is not a valid number`);
-          if(date&&!/^\d{4}-\d{2}-\d{2}$/.test(date))rowErrors.push(`Date "${rawDate}" is invalid — must be YYYY-MM-DD format`);
-          if(vendorType&&!VENDOR_TYPES.includes(vendorType))rowErrors.push(`Vendor Type "${vendorType}" is invalid`);
-          if(paymentStatus&&!["Pending","Paid"].includes(paymentStatus))rowErrors.push(`Payment Status "${paymentStatus}" must be Pending or Paid`);
-
-          if(rowErrors.length>0){errors.push(`Row ${rowNum} (${vendorName||"unnamed"}): ${rowErrors.join("; ")}`);return;}
-
-          const dupExisting=invoiceNumber&&currentBills.find(b=>(b.invoiceNumber||"").trim().toLowerCase()===invoiceNumber.toLowerCase()&&String(b.totalAmount||"").trim()===totalAmount);
-          if(dupExisting){errors.push(`Row ${rowNum} (${vendorName}): DUPLICATE — Invoice "${invoiceNumber}" with amount ₹${totalAmount} already exists (Bill #${dupExisting.srNo})`);return;}
-
-          const dupInFile=validBills.find(b=>invoiceNumber&&(b.invoiceNumber||"").trim().toLowerCase()===invoiceNumber.toLowerCase()&&String(b.totalAmount||"").trim()===totalAmount);
-          if(dupInFile){errors.push(`Row ${rowNum} (${vendorName}): DUPLICATE within import file — Invoice "${invoiceNumber}" appears more than once`);return;}
-
-          validBills.push({id:crypto.randomUUID(),srNo:currentBills.length+validBills.length+1,vendorName,vendorType,invoiceNumber,date,totalAmount,paymentStatus:["Pending","Paid"].includes(paymentStatus)?paymentStatus:"Pending",remarks,thumbnail:null});
-        });
-
-        if(validBills.length===0&&errors.length>0){onResult({errors,imported:0,newIds:[]});return;}
-
-        setSaveStatus("saving");
-        const newIds=[];
-        let insertedCount=0;
-        for(const bill of validBills){
-          try{await dbInsert(bill);newIds.push(bill.id);insertedCount++;}
-          catch(e){errors.push(`Failed to save "${bill.vendorName}": ${e.message||"database error"}`);}
-        }
-
-        if(insertedCount>0){
-          const updated=[...currentBills,...validBills.slice(0,insertedCount)];
-          updated.forEach((b,i)=>b.srNo=i+1);
-          setBills(updated);billsRef.current=updated;
-          setNewlyImportedIds(new Set(newIds));
-          setTimeout(()=>setNewlyImportedIds(new Set()),8000);
-        }
-        setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);
-        onResult({errors,imported:insertedCount,newIds,sampleNote});
-      }catch(err){onResult({errors:[`Could not read Excel file: ${err.message}. Use the correct template.`],imported:0,newIds:[]});}
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
   const handleFiles=async files=>{
     if(!apiKey){setShowKeyModal(true);return;}
     const valid=Array.from(files).filter(f=>f.type.startsWith("image/")||f.type==="application/pdf"||f.type==="image/heic"||f.type==="image/heif"||f.name.match(/\.(heic|heif|jpg|jpeg|png|gif|webp|pdf)$/i));
