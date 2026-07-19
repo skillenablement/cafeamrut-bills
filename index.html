@@ -879,7 +879,7 @@ function ApiKeyModal({onSave, currentApiKey}){
   const [saving,setSaving]=useState(false);
 
   const handleSave=async()=>{
-    if(key.length<10){setError("Please enter a valid Gemini API key.");return;}
+    if(!key.startsWith("sk-")){setError("API key must start with sk-ant-...");return;}
     if(!adminPw){setError("Admin password is required.");return;}
     setSaving(true);setError("");
     const result=await onSave(key,adminPw);
@@ -894,16 +894,16 @@ function ApiKeyModal({onSave, currentApiKey}){
           <div style={{fontSize:32}}>🔑</div>
           <button onClick={()=>onSave(null,null,"close")} style={{background:"none",border:"none",cursor:"pointer",fontSize:22,color:"#9ca3af",lineHeight:1,padding:4}}>✕</button>
         </div>
-        <h2 style={{fontSize:18,fontWeight:700,marginBottom:4}}>Google Gemini API Key</h2>
+        <h2 style={{fontSize:18,fontWeight:700,marginBottom:4}}>Anthropic API Key</h2>
         <p style={{fontSize:13,color:"#6b7280",marginBottom:20,lineHeight:1.6}}>
-          Stored securely in the cloud — 100% free via Google Gemini.
-          Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" style={{color:"#2563eb"}}>aistudio.google.com/apikey</a>
+          Stored securely in the cloud — works on all devices automatically.
+          Get a key at <a href="https://console.anthropic.com" target="_blank" style={{color:"#2563eb"}}>console.anthropic.com</a>
         </p>
 
         {/* API Key field */}
-        <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:5}}>Google Gemini API Key</label>
+        <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:5}}>Anthropic API Key</label>
         <div style={{position:"relative",marginBottom:16}}>
-          <input type={showKey?"text":"password"} placeholder="AQ.Ab8... (Gemini key from AI Studio)" value={key}
+          <input type={showKey?"text":"password"} placeholder="sk-ant-..." value={key}
             onChange={e=>{setKey(e.target.value);setError("");}}
             onKeyDown={e=>e.key==="Enter"&&handleSave()}
             style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 40px 10px 12px",fontSize:14,fontFamily:"monospace",boxSizing:"border-box"}}
@@ -932,7 +932,7 @@ function ApiKeyModal({onSave, currentApiKey}){
         </p>
 
         <button onClick={handleSave} disabled={saving||!key||!adminPw}
-          style={{width:"100%",background:"#2563eb",color:"#fff",border:"none",borderRadius:8,padding:"11px",fontSize:14,fontWeight:600,cursor:saving||key.length<10||!adminPw?"not-allowed":"pointer",opacity:saving||key.length<10||!adminPw?0.5:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          style={{width:"100%",background:"#2563eb",color:"#fff",border:"none",borderRadius:8,padding:"11px",fontSize:14,fontWeight:600,cursor:saving||!key.startsWith("sk-")||!adminPw?"not-allowed":"pointer",opacity:saving||!key.startsWith("sk-")||!adminPw?0.5:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
           {saving?<><div style={{width:16,height:16,border:"2px solid #fff",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .7s linear infinite"}}/> Saving to cloud…</>:"☁️ Save API Key"}
         </button>
       </div>
@@ -1083,20 +1083,24 @@ function App(){
 
     const data=await toBase64(sendFile);
 
-    // ── GOOGLE GEMINI API (free tier) ──
-    const prompt="Extract bill details from this image. Return ONLY a valid JSON object with these exact keys: vendorName (string), vendorType (exactly one of: Bakery, Grocery, Beverage, Dairy, Meat & Seafood, Produce, Packaging, Cleaning, Equipment, Utilities, Other), invoiceNumber (string), date (YYYY-MM-DD string), totalAmount (number, no currency symbol, include all taxes), items (array of objects, each with: name, quantity, unit, rate as number, amount as number). Use empty string for unclear text, 0 for unclear numbers, empty array if no line items visible. Return ONLY the JSON, no markdown backticks, no explanation.";
+    // ── ANTHROPIC CLAUDE API ──
+    const blk=isImg
+      ?{type:"image",source:{type:"base64",media_type:mediaType,data}}
+      :{type:"document",source:{type:"base64",media_type:"application/pdf",data}};
 
-    const geminiUrl="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key="+apiKey;
-
-    const res=await fetch(geminiUrl,{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
-      headers:{"Content-Type":"application/json"},
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key":apiKey,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
       body:JSON.stringify({
-        contents:[{parts:[
-          {inline_data:{mime_type:isPdf?"application/pdf":mediaType,data}},
-          {text:prompt}
-        ]}],
-        generationConfig:{temperature:0,maxOutputTokens:1000}
+        model:"claude-sonnet-4-6",
+        max_tokens:1000,
+        system:"Extract bill details, return ONLY valid JSON with these keys: vendorName, vendorType (pick from: Bakery/Grocery/Beverage/Dairy/Meat & Seafood/Produce/Packaging/Cleaning/Equipment/Utilities/Other), invoiceNumber, date (YYYY-MM-DD), totalAmount (number only, including all taxes), items (array of line items, each: {name, quantity, unit, rate, amount}). If a field is unclear use empty string or empty array. Return ONLY valid JSON, no markdown.",
+        messages:[{role:"user",content:[blk,{type:"text",text:"Extract bill details."}]}]
       })
     });
 
@@ -1107,7 +1111,7 @@ function App(){
     }
 
     const d=await res.json();
-    const raw=(d.candidates?.[0]?.content?.parts?.[0]?.text||"").replace(/```json|```/g,"").trim();
+    const raw=(d.content||[]).map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
     let p={};
     try{p=JSON.parse(raw);}catch{
       const m=raw.match(/\{[\s\S]*\}/);
