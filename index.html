@@ -1086,7 +1086,7 @@ function App(){
     // ── GOOGLE GEMINI API (free tier) ──
     const prompt="Extract bill details from this image. Return ONLY a valid JSON object with these exact keys: vendorName (string), vendorType (exactly one of: Bakery, Grocery, Beverage, Dairy, Meat & Seafood, Produce, Packaging, Cleaning, Equipment, Utilities, Other), invoiceNumber (string), date (YYYY-MM-DD string), totalAmount (number, no currency symbol, include all taxes), items (array of objects, each with: name, quantity, unit, rate as number, amount as number). Use empty string for unclear text, 0 for unclear numbers, empty array if no line items visible. Return ONLY the JSON, no markdown backticks, no explanation.";
 
-    const geminiUrl="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="+apiKey;
+    const geminiUrl="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key="+apiKey;
 
     const res=await fetch(geminiUrl,{
       method:"POST",
