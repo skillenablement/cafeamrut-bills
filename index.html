@@ -1414,7 +1414,7 @@ function App(){
                 <TH k="vendor" label={<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Vendor</span>} onClick={()=>{setVendorSort(s=>s==="asc"?"desc":"asc");setAmountSort(null);}}/>
                 <TH k="type" label="Type"/>
                 <TH k="invoice" label={<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Invoice</span>}/>
-                <TH k="amount" label={<SortBadge label="Amount" sort={amountSort} color="#9333ea" bg="#fdf4ff" border="#d8b4fe"/>} align="right" onClick={()=>{setAmountSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);}}/>
+                <TH k="amount" label={<SortBadge label={isAdmin?"✏ Amount":"Amount"} sort={amountSort} color="#9333ea" bg="#fdf4ff" border="#d8b4fe"/>} align="right" onClick={()=>{setAmountSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);}}/>
                 <TH k="status" label="Status" align="right"/>
                 <TH k="date" label={<span style={{display:"inline-flex",alignItems:"center",gap:3}}><SortBadge label="✏ Date" sort={dateSort} color="#2563eb" bg="#eff6ff" border="#bfdbfe"/></span>} onClick={()=>{setDateSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);setAmountSort(null);}}/>
                 <TH k="remarks" label="Remarks" align="center"/>
@@ -1439,7 +1439,9 @@ function App(){
                       {isAdmin?<EditCell value={bill.vendorName} style={{fontWeight:600}} onSave={v=>quickUpdate(bill.id,"vendorName",v)}/>:<TipCell value={bill.vendorName} style={{fontWeight:600}}/>}
                       <td style={{padding:"10px 10px",overflow:"hidden",borderRight:"1px solid #e5e7eb"}}>{bill.vendorType?<span title={bill.vendorType} style={{background:"#eff6ff",color:"#2563eb",borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"inline-block",maxWidth:"100%"}}>{bill.vendorType}</span>:<span style={{color:"#d1d5db"}}>—</span>}</td>
                       {isAdmin?<EditCell value={bill.invoiceNumber} style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"invoiceNumber",v)}/>:<TipCell value={bill.invoiceNumber} style={{color:"#6b7280"}}/>}
-                      <TipCell value={amtStr} style={{textAlign:"right",fontWeight:600}}/>
+                      {isAdmin
+                        ?<EditCell value={bill.totalAmount?String(bill.totalAmount):""} type="number" style={{textAlign:"right",fontWeight:600,color:"#111"}} onSave={v=>quickUpdate(bill.id,"totalAmount",v)}/>
+                        :<TipCell value={amtStr} style={{textAlign:"right",fontWeight:600}}/>}
                       <td style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}>
                         <button onClick={()=>toggleStatus(bill.id)} title={`Mark as ${bill.paymentStatus==="Paid"?"Pending":"Paid"}`} style={{display:"inline-flex",alignItems:"center",gap:4,background:bill.paymentStatus==="Paid"?"#f0fdf4":"#fffbeb",color:bill.paymentStatus==="Paid"?"#16a34a":"#d97706",border:`1px solid ${bill.paymentStatus==="Paid"?"#86efac":"#fcd34d"}`,borderRadius:4,padding:"3px 9px",fontSize:11,fontWeight:500,cursor:"pointer"}}>
                           {bill.paymentStatus==="Paid"?"✓":"⏳"} {bill.paymentStatus}
