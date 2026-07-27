@@ -1189,15 +1189,35 @@ function App(){
     catch(e){setSaveStatus("error");notify("Could not delete.","err");}
   };
 
+  // Build a timestamp remark string
+  const buildStatusRemark=(newStatus,username)=>{
+    const now=new Date();
+    const dateStr=now.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
+    const timeStr=now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
+    return `Marked ${newStatus} on ${dateStr} ${timeStr} by ${username||"admin"}`;
+  };
+
+  // Append remark to existing remarks (newline separated)
+  const appendRemark=(existing,newRemark)=>{
+    const trimmed=(existing||"").trim();
+    return trimmed ? trimmed+"\n"+newRemark : newRemark;
+  };
+
   const toggleStatus=async id=>{
-    const bill=bills.find(b=>b.id===id);const newStatus=bill.paymentStatus==="Paid"?"Pending":"Paid";
+    const bill=bills.find(b=>b.id===id);
+    const newStatus=bill.paymentStatus==="Paid"?"Pending":"Paid";
+    const username=currentUser?.username||"admin";
+    const newRemark=buildStatusRemark(newStatus,username);
+    const updatedRemarks=appendRemark(bill.remarks,newRemark);
+    const updatedBill={...bill,paymentStatus:newStatus,remarks:updatedRemarks};
     try{
-      await dbUpdate({...bill,paymentStatus:newStatus});
-      setBills(p=>p.map(b=>b.id===id?{...b,paymentStatus:newStatus}:b));
+      await dbUpdate(updatedBill);
+      setBills(p=>p.map(b=>b.id===id?updatedBill:b));
+      billsRef.current=billsRef.current.map(b=>b.id===id?updatedBill:b);
       if(newStatus==="Paid"){
-        notify(`✓ Marked as Paid — moved to Paid Bills tab.`);
+        notify("✓ Marked as Paid — moved to Paid Bills tab.");
       } else {
-        notify(`↩ Moved back to Pending Bills.`);
+        notify("↩ Moved back to Pending Bills.");
       }
     }
     catch(e){notify("Could not update status.","err");}
@@ -1205,15 +1225,22 @@ function App(){
 
   const markMultiplePaid=async(ids)=>{
     setSaveStatus("saving");
+    const username=currentUser?.username||"admin";
+    const newRemark=buildStatusRemark("Paid",username);
     let count=0;
     for(const id of ids){
       const bill=billsRef.current.find(b=>b.id===id);
       if(bill&&bill.paymentStatus==="Pending"){
-        try{await dbUpdate({...bill,paymentStatus:"Paid"});count++;}catch(e){}
+        const updatedRemarks=appendRemark(bill.remarks,newRemark);
+        const updatedBill={...bill,paymentStatus:"Paid",remarks:updatedRemarks};
+        try{
+          await dbUpdate(updatedBill);
+          billsRef.current=billsRef.current.map(b=>b.id===id?updatedBill:b);
+          count++;
+        }catch(e){}
       }
     }
-    const updated=billsRef.current.map(b=>ids.includes(b.id)?{...b,paymentStatus:"Paid"}:b);
-    setBills(updated);billsRef.current=updated;
+    setBills([...billsRef.current]);
     setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);
     notify(`${count} bill${count!==1?"s":""} marked as Paid.`);
   };
