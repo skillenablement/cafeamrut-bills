@@ -1009,6 +1009,7 @@ function App(){
   const [showPaidPage,setShowPaidPage]=useState(false);
   const [dateSort,setDateSort]=useState("desc");
   const [vendorSort,setVendorSort]=useState(null);
+  const [typeSort,setTypeSort]=useState(null);
   const [amountSort,setAmountSort]=useState(null);
   const [cols,setCols]=useState(DEFAULT_COLS);
   const DEFAULT_ORDER = ["thumb","chk","sr","vendor","type","invoice","amount","status","date","remarks","actions"];
@@ -1323,6 +1324,7 @@ function App(){
   }).sort((a,b)=>{
     if(amountSort){const d=Number(a.totalAmount||0)-Number(b.totalAmount||0);return amountSort==="asc"?d:-d;}
     if(vendorSort){const va=(a.vendorName||"").toLowerCase(),vb=(b.vendorName||"").toLowerCase();return vendorSort==="asc"?va.localeCompare(vb):vb.localeCompare(va);}
+    if(typeSort){const ta=(a.vendorType||"").toLowerCase(),tb=(b.vendorType||"").toLowerCase();return typeSort==="asc"?ta.localeCompare(tb):tb.localeCompare(ta);}
     const da=a.date?new Date(a.date):new Date(0),db=b.date?new Date(b.date):new Date(0);
     return dateSort==="asc"?da-db:db-da;
   });
@@ -1537,12 +1539,12 @@ function App(){
                     </th>
                   );
                   if(k==="sr") return <TH key="sr" k="sr" label="#"/>;
-                  if(k==="vendor") return <TH key="vendor" k="vendor" label={<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Vendor</span>} onClick={()=>{setVendorSort(s=>s==="asc"?"desc":"asc");setAmountSort(null);}}/>;
-                  if(k==="type") return <TH key="type" k="type" label={isAdmin?<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Type</span>:"Type"}/>;
+                  if(k==="vendor") return <TH key="vendor" k="vendor" label={<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Vendor</span>} onClick={()=>{setVendorSort(s=>s==="asc"?"desc":"asc");setAmountSort(null);setTypeSort(null);}}/>;
+                  if(k==="type") return <TH key="type" k="type" label={<span style={{display:"inline-flex",alignItems:"center",gap:3}}><SortBadge label={isAdmin?"✏ Type":"Type"} sort={typeSort} color="#16a34a" bg="#f0fdf4" border="#86efac"/></span>} onClick={()=>{setTypeSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);setAmountSort(null);}}/>;
                   if(k==="invoice") return <TH key="invoice" k="invoice" label={<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Invoice</span>}/>;
-                  if(k==="amount") return <TH key="amount" k="amount" label={<SortBadge label={isAdmin?"✏ Amount":"Amount"} sort={amountSort} color="#9333ea" bg="#fdf4ff" border="#d8b4fe"/>} align="right" onClick={()=>{setAmountSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);}}/>;
+                  if(k==="amount") return <TH key="amount" k="amount" label={<SortBadge label={isAdmin?"✏ Amount":"Amount"} sort={amountSort} color="#9333ea" bg="#fdf4ff" border="#d8b4fe"/>} align="right" onClick={()=>{setAmountSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);setTypeSort(null);}}/>;
                   if(k==="status") return <TH key="status" k="status" label="Status" align="right"/>;
-                  if(k==="date") return <TH key="date" k="date" label={<span style={{display:"inline-flex",alignItems:"center",gap:3}}><SortBadge label="✏ Date" sort={dateSort} color="#2563eb" bg="#eff6ff" border="#bfdbfe"/></span>} onClick={()=>{setDateSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);setAmountSort(null);}}/>;
+                  if(k==="date") return <TH key="date" k="date" label={<span style={{display:"inline-flex",alignItems:"center",gap:3}}><SortBadge label="✏ Date" sort={dateSort} color="#2563eb" bg="#eff6ff" border="#bfdbfe"/></span>} onClick={()=>{setDateSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);setAmountSort(null);setTypeSort(null);}}/>;
                   if(k==="remarks") return <TH key="remarks" k="remarks" label="Remarks" align="center"/>;
                   if(k==="actions"&&isAdmin) return <TH key="actions" k="actions" label="Actions" align="right"/>;
                   return null;
