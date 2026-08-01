@@ -542,6 +542,184 @@ function BillDetailModal({bill, onClose}){
   );
 }
 
+
+// ── ITEMIZED EXPORT MODAL ──
+function ItemizedExportModal({bills, onClose}){
+  const [fromDate,setFromDate]=useState("");
+  const [toDate,setToDate]=useState("");
+  const [error,setError]=useState("");
+  const [exported,setExported]=useState(null);
+
+  const handleExport=()=>{
+    setError("");setExported(null);
+    if(!fromDate||!toDate){setError("Please select both From and To dates.");return;}
+    if(fromDate>toDate){setError("From date cannot be after To date.");return;}
+
+    // Filter bills in date range that have items
+    const filtered=bills.filter(b=>{
+      if(!b.date)return false;
+      return b.date>=fromDate && b.date<=toDate;
+    });
+
+    if(!filtered.length){setError(`No bills found between ${fromDate} and ${toDate}.`);return;}
+
+    // Flatten all items across all bills into rows
+    const rows=[];
+    let billsWithItems=0;
+    let billsWithoutItems=0;
+
+    filtered.forEach(b=>{
+      const items=Array.isArray(b.items)?b.items:[];
+      const fmtDate=d=>{if(!d)return"";const dt=new Date(d);return isNaN(dt)?d:dt.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});};
+
+      if(items.length>0){
+        billsWithItems++;
+        items.forEach(it=>{
+          rows.push({
+            "Vendor Name":b.vendorName||"",
+            "Invoice Number":b.invoiceNumber||"",
+            "Bill Date":b.date?fmtDate(b.date):"",
+            "Total Bill Amount (₹)":b.totalAmount?Number(b.totalAmount):"",
+            "Item Name":it.name||"",
+            "Quantity":it.quantity||"",
+            "Unit":it.unit||"",
+            "Rate (₹)":it.rate?Number(it.rate):"",
+            "Amount (₹)":it.amount?Number(it.amount):"",
+          });
+        });
+      } else {
+        billsWithoutItems++;
+        // Still include bills without items as a single row
+        rows.push({
+          "Vendor Name":b.vendorName||"",
+          "Invoice Number":b.invoiceNumber||"",
+          "Bill Date":b.date?fmtDate(b.date):"",
+          "Total Bill Amount (₹)":b.totalAmount?Number(b.totalAmount):"",
+          "Item Name":"(no itemized details)",
+          "Quantity":"","Unit":"","Rate (₹)":"","Amount (₹)":"",
+        });
+      }
+    });
+
+    // Build Excel workbook
+    const ws=XLSX.utils.json_to_sheet(rows);
+    ws["!cols"]=[
+      {wch:24},{wch:18},{wch:14},{wch:20},
+      {wch:28},{wch:10},{wch:10},{wch:14},{wch:14}
+    ];
+
+    // Style header row bold (XLSX free tier - just set width)
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Itemized Bills");
+
+    // Summary sheet
+    const fmtD=d=>{if(!d)return"";const dt=new Date(d);return isNaN(dt)?d:dt.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});};
+    const summaryRows=[
+      {"Summary":"Export Period","Value":`${fmtD(fromDate)} to ${fmtD(toDate)}`},
+      {"Summary":"Total Bills in Range","Value":filtered.length},
+      {"Summary":"Bills with Itemized Details","Value":billsWithItems},
+      {"Summary":"Bills without Itemized Details","Value":billsWithoutItems},
+      {"Summary":"Total Line Items Exported","Value":rows.filter(r=>r["Item Name"]!=="(no itemized details)").length},
+      {"Summary":"Generated On","Value":new Date().toLocaleString("en-IN")},
+    ];
+    const ws2=XLSX.utils.json_to_sheet(summaryRows);
+    ws2["!cols"]=[{wch:35},{wch:30}];
+    XLSX.utils.book_append_sheet(wb,ws2,"Summary");
+
+    const fileName=`CafeAmrut_ItemizedBills_${fromDate}_to_${toDate}.xlsx`;
+    XLSX.writeFile(wb,fileName);
+    setExported({total:filtered.length,items:rows.filter(r=>r["Item Name"]!=="(no itemized details)").length,withItems:billsWithItems,withoutItems:billsWithoutItems,fileName});
+  };
+
+  const fmtDisp=d=>{if(!d)return"";const dt=new Date(d);return isNaN(dt)?d:dt.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});};
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
+      <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:520,boxShadow:"0 24px 60px rgba(0,0,0,0.25)"}}>
+        {/* Header */}
+        <div style={{background:"linear-gradient(135deg,#1e3a5f,#2563eb)",borderRadius:"16px 16px 0 0",padding:"20px 24px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:24}}>📊</span>
+              <div>
+                <h2 style={{fontSize:18,fontWeight:700,color:"#fff",marginBottom:2}}>Export Itemized Bills</h2>
+                <p style={{fontSize:12,color:"rgba(255,255,255,0.7)"}}>All line items across bills — exported to a single Excel workbook</p>
+              </div>
+            </div>
+            <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:18,lineHeight:1}}>✕</button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{padding:"24px"}}>
+          {/* Date range */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+            <div>
+              <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:6}}>📅 From Date</label>
+              <input type="date" value={fromDate} onChange={e=>{setFromDate(e.target.value);setError("");setExported(null);}}
+                style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 12px",fontSize:14,boxSizing:"border-box"}}/>
+            </div>
+            <div>
+              <label style={{display:"block",fontSize:12,fontWeight:600,color:"#374151",marginBottom:6}}>📅 To Date</label>
+              <input type="date" value={toDate} onChange={e=>{setToDate(e.target.value);setError("");setExported(null);}}
+                style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 12px",fontSize:14,boxSizing:"border-box"}}/>
+            </div>
+          </div>
+
+          {/* Preview count */}
+          {fromDate&&toDate&&fromDate<=toDate&&(()=>{
+            const count=bills.filter(b=>b.date&&b.date>=fromDate&&b.date<=toDate).length;
+            const itemCount=bills.filter(b=>b.date&&b.date>=fromDate&&b.date<=toDate&&Array.isArray(b.items)&&b.items.length>0).reduce((s,b)=>s+b.items.length,0);
+            return count>0?(
+              <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13}}>
+                <span style={{color:"#1d4ed8",fontWeight:600}}>{count} bill{count!==1?"s":""}</span>
+                <span style={{color:"#6b7280"}}> found in range · </span>
+                <span style={{color:"#1d4ed8",fontWeight:600}}>{itemCount} line item{itemCount!==1?"s":""}</span>
+                <span style={{color:"#6b7280"}}> with itemized details</span>
+              </div>
+            ):<div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13,color:"#92400e"}}>No bills found in this date range.</div>;
+          })()}
+
+          {error&&<div style={{background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13,color:"#dc2626"}}>{error}</div>}
+
+          {/* Success result */}
+          {exported&&(
+            <div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:8,padding:"14px",marginBottom:16}}>
+              <p style={{fontWeight:700,color:"#15803d",fontSize:14,marginBottom:8}}>✅ Export successful!</p>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,fontSize:12,color:"#374151"}}>
+                <span>Bills exported:</span><span style={{fontWeight:600}}>{exported.total}</span>
+                <span>Line items:</span><span style={{fontWeight:600}}>{exported.items}</span>
+                <span>With itemized details:</span><span style={{fontWeight:600,color:"#16a34a"}}>{exported.withItems}</span>
+                <span>Without details:</span><span style={{fontWeight:600,color:"#d97706"}}>{exported.withoutItems}</span>
+              </div>
+              <p style={{fontSize:11,color:"#9ca3af",marginTop:8}}>Saved as: {exported.fileName}</p>
+            </div>
+          )}
+
+          {/* Columns info */}
+          <div style={{background:"#f9fafb",borderRadius:8,padding:"12px 14px",marginBottom:20,fontSize:12,color:"#6b7280"}}>
+            <p style={{fontWeight:600,color:"#374151",marginBottom:6}}>Excel will contain these columns:</p>
+            <p>Vendor Name · Invoice Number · Bill Date · Total Bill Amount · Item Name · Quantity · Unit · Rate · Amount</p>
+            <p style={{marginTop:4}}>+ a Summary tab with export statistics</p>
+          </div>
+
+          {/* Buttons */}
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={handleExport} disabled={!fromDate||!toDate}
+              style={{flex:1,background:fromDate&&toDate?"#2563eb":"#9ca3af",color:"#fff",border:"none",borderRadius:8,padding:"12px",fontSize:14,fontWeight:600,cursor:fromDate&&toDate?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+              ⬇ Export to Excel
+            </button>
+            <button onClick={onClose}
+              style={{background:"#fff",color:"#374151",border:"1px solid #d1d5db",borderRadius:8,padding:"12px 20px",fontSize:14,cursor:"pointer"}}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── LOGIN SCREEN ──
 function LoginScreen({onLogin}){
   const [username,setUsername]=useState("");
@@ -1007,6 +1185,7 @@ function App(){
   const [showDashboard,setShowDashboard]=useState(false);
   const [viewBill,setViewBill]=useState(null);
   const [showPaidPage,setShowPaidPage]=useState(false);
+  const [showItemizedExport,setShowItemizedExport]=useState(false);
   const [dateSort,setDateSort]=useState("desc");
   const [vendorSort,setVendorSort]=useState(null);
   const [typeSort,setTypeSort]=useState(null);
@@ -1394,6 +1573,7 @@ function App(){
       {showImportModal&&<BulkImportModal onClose={()=>setShowImportModal(false)} onImport={handleBulkImport} onDownloadTemplate={downloadTemplate}/>}
       {showDashboard&&<PendingDashboard bills={bills} onClose={()=>setShowDashboard(false)} onMarkPaid={async(ids)=>{await markMultiplePaid(ids);}}/>}
       {viewBill&&<BillDetailModal bill={viewBill} onClose={()=>setViewBill(null)}/>}
+      {showItemizedExport&&<ItemizedExportModal bills={bills} onClose={()=>setShowItemizedExport(false)}/>}
 
       {/* HEADER */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:10}}>
@@ -1410,6 +1590,10 @@ function App(){
             📊 Dashboard
           </button>
           <button style={C.outBtn} onClick={dlXlsx} disabled={!bills.length}>⬇ Excel</button>
+          <button onClick={()=>setShowItemizedExport(true)} disabled={!bills.length}
+            style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:bills.length?"#f0fdf4":"#f9fafb",color:bills.length?"#16a34a":"#9ca3af",border:`1px solid ${bills.length?"#86efac":"#e5e7eb"}`,borderRadius:7,fontSize:13,fontWeight:600,cursor:bills.length?"pointer":"not-allowed"}}>
+            📋 Export Itemized Bills
+          </button>
           <button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={loadBills} title="Refresh">↻</button>
           {isAdmin&&<button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={()=>setShowPwModal(true)} title="Change Passwords">🔐</button>}
           <button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={()=>setShowKeyModal(true)} title="API Key">🔑</button>
