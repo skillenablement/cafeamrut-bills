@@ -1027,12 +1027,17 @@ function App(){
     if(!manualForm.totalAmount||isNaN(Number(manualForm.totalAmount))) errs.totalAmount="Valid amount is required.";
     if(!manualForm.date) errs.date="Date is required.";
     if(Object.keys(errs).length){setManualErrors(errs);return;}
+    const now=new Date();
+    const dateStr=now.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
+    const timeStr=now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
+    const manualRemark=`Added manually on ${dateStr} ${timeStr} by ${currentUser?.username||"admin"}`;
+    const baseRemarks=manualForm.remarks.trim();
     const bill={
       id:crypto.randomUUID(), srNo:billsRef.current.length+1,
       vendorName:manualForm.vendorName.trim(), vendorType:manualForm.vendorType,
       invoiceNumber:manualForm.invoiceNumber.trim(), date:manualForm.date,
       totalAmount:manualForm.totalAmount, paymentStatus:manualForm.paymentStatus,
-      remarks:manualForm.remarks.trim(), thumbnail:null
+      remarks:baseRemarks ? baseRemarks+"\n"+manualRemark : manualRemark, thumbnail:null
     };
     // Check duplicate
     const dup=isDup(bill,billsRef.current);
@@ -1119,12 +1124,16 @@ function App(){
     }
 
     const thumb=await makeThumbnail(file);
+    const now=new Date();
+    const dateStr=now.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
+    const timeStr=now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
+    const uploadRemark=`Uploaded on ${dateStr} ${timeStr} by ${currentUser?.username||"admin"}`;
     return{
       id:crypto.randomUUID(),srNo:cur.length+1,
       vendorName:p.vendorName||"",vendorType:p.vendorType||"",
       invoiceNumber:p.invoiceNumber||"",date:p.date||"",
       totalAmount:p.totalAmount||"",
-      paymentStatus:"Pending",remarks:"",thumbnail:thumb,
+      paymentStatus:"Pending",remarks:uploadRemark,thumbnail:thumb,
       items:Array.isArray(p.items)?p.items:[]
     };
   };
@@ -1166,7 +1175,14 @@ function App(){
 
   const quickUpdate=async(id,field,value)=>{
     const bill=billsRef.current.find(b=>b.id===id);if(!bill)return;
-    const updated={...bill,[field]:value};
+    // Build audit remark for tracked fields
+    const fieldLabels={vendorName:"vendor name",invoiceNumber:"invoice details",totalAmount:"amount details",date:"date details"};
+    let newRemarks=bill.remarks;
+    if(fieldLabels[field]&&value!==bill[field]){
+      const auditRemark=buildRemark(`Updated ${fieldLabels[field]}`,currentUser?.username||"admin");
+      newRemarks=appendRemark(bill.remarks,auditRemark);
+    }
+    const updated={...bill,[field]:value,remarks:newRemarks};
     try{await dbUpdate(updated);setBills(p=>p.map(b=>b.id===id?updated:b));billsRef.current=billsRef.current.map(b=>b.id===id?updated:b);setSaveStatus("saved");setTimeout(()=>setSaveStatus("idle"),2000);}
     catch(e){notify("Could not save field.","err");}
   };
@@ -1189,13 +1205,14 @@ function App(){
     catch(e){setSaveStatus("error");notify("Could not delete.","err");}
   };
 
-  // Build a timestamp remark string
-  const buildStatusRemark=(newStatus,username)=>{
+  // Build a timestamped audit remark
+  const buildRemark=(action,username)=>{
     const now=new Date();
     const dateStr=now.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
     const timeStr=now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
-    return `Marked ${newStatus} on ${dateStr} ${timeStr} by ${username||"admin"}`;
+    return `${action} on ${dateStr} ${timeStr} by ${username||"admin"}`;
   };
+  const buildStatusRemark=(newStatus,username)=>buildRemark(`Marked ${newStatus}`,username);
 
   // Append remark to existing remarks (newline separated)
   const appendRemark=(existing,newRemark)=>{
