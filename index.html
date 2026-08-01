@@ -724,6 +724,45 @@ function BulkImportModal({onClose,onImport,onDownloadTemplate}){
   );
 }
 
+// ── DROPDOWN EDIT CELL ──
+function DropdownCell({value, options, onSave, isAdmin}){
+  const [editing,setEditing]=useState(false);
+  const [val,setVal]=useState(value||"");
+  const selectRef=useRef();
+  useEffect(()=>{setVal(value||"");},[value]);
+  useEffect(()=>{if(editing&&selectRef.current)selectRef.current.focus();},[editing]);
+
+  const commit=(newVal)=>{
+    setEditing(false);
+    if(newVal!==value) onSave(newVal);
+  };
+
+  if(editing&&isAdmin) return(
+    <td style={{padding:"4px 6px",borderRight:"1px solid #e5e7eb",overflow:"visible"}} onClick={e=>e.stopPropagation()}>
+      <select ref={selectRef} value={val}
+        onChange={e=>{setVal(e.target.value);commit(e.target.value);}}
+        onBlur={()=>commit(val)}
+        style={{width:"100%",border:"1px solid #93c5fd",borderRadius:4,padding:"4px 6px",fontSize:12,outline:"none",background:"#fff",cursor:"pointer"}}>
+        <option value="">— Select type —</option>
+        {options.map(o=><option key={o} value={o}>{o}</option>)}
+      </select>
+    </td>
+  );
+
+  return(
+    <td onClick={()=>isAdmin&&setEditing(true)}
+      title={isAdmin?`Click to change type: ${value||"—"}`:""}
+      style={{padding:"10px 10px",overflow:"hidden",borderRight:"1px solid #e5e7eb",cursor:isAdmin?"pointer":"default"}}>
+      {value
+        ?<span style={{display:"inline-flex",alignItems:"center",gap:4,maxWidth:"100%"}}>
+            <span style={{background:"#eff6ff",color:"#2563eb",borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{value}</span>
+            {isAdmin&&<span style={{fontSize:10,color:"#93c5fd",flexShrink:0,opacity:0.7}}>✏</span>}
+          </span>
+        :<span style={{color:isAdmin?"#93c5fd":"#d1d5db",fontSize:11}}>{isAdmin?"+ type":"—"}</span>}
+    </td>
+  );
+}
+
 // ── REMARKS CELL ──
 function RemarksCell({value, onSave, isAdmin}){
   const [hovered,setHovered]=useState(false);
@@ -1180,7 +1219,7 @@ function App(){
   const quickUpdate=async(id,field,value)=>{
     const bill=billsRef.current.find(b=>b.id===id);if(!bill)return;
     // Build audit remark for tracked fields
-    const fieldLabels={vendorName:"vendor name",invoiceNumber:"invoice details",totalAmount:"amount details",date:"date details"};
+    const fieldLabels={vendorName:"vendor name",vendorType:"vendor type",invoiceNumber:"invoice details",totalAmount:"amount details",date:"date details"};
     let newRemarks=bill.remarks;
     if(fieldLabels[field]&&value!==bill[field]){
       const auditRemark=buildRemark(`Updated ${fieldLabels[field]}`,currentUser?.username||"admin");
@@ -1499,7 +1538,7 @@ function App(){
                   );
                   if(k==="sr") return <TH key="sr" k="sr" label="#"/>;
                   if(k==="vendor") return <TH key="vendor" k="vendor" label={<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Vendor</span>} onClick={()=>{setVendorSort(s=>s==="asc"?"desc":"asc");setAmountSort(null);}}/>;
-                  if(k==="type") return <TH key="type" k="type" label="Type"/>;
+                  if(k==="type") return <TH key="type" k="type" label={isAdmin?<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Type</span>:"Type"}/>;
                   if(k==="invoice") return <TH key="invoice" k="invoice" label={<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#2563eb",fontSize:11}}>✏ Invoice</span>}/>;
                   if(k==="amount") return <TH key="amount" k="amount" label={<SortBadge label={isAdmin?"✏ Amount":"Amount"} sort={amountSort} color="#9333ea" bg="#fdf4ff" border="#d8b4fe"/>} align="right" onClick={()=>{setAmountSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);}}/>;
                   if(k==="status") return <TH key="status" k="status" label="Status" align="right"/>;
@@ -1526,7 +1565,7 @@ function App(){
                         if(k==="chk") return <td key="chk" style={{padding:"10px 12px",textAlign:"center",borderRight:"1px solid #e5e7eb"}}><div style={C.chk(isSel)} onClick={()=>toggleSel(bill.id)}>{isSel&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}</div></td>;
                         if(k==="sr") return <TipCell key="sr" value={String(bill.srNo)} style={{color:"#9ca3af"}}/>;
                         if(k==="vendor") return isAdmin?<EditCell key="vendor" value={bill.vendorName} style={{fontWeight:600}} onSave={v=>quickUpdate(bill.id,"vendorName",v)}/>:<TipCell key="vendor" value={bill.vendorName} style={{fontWeight:600}}/>;
-                        if(k==="type") return <td key="type" style={{padding:"10px 10px",overflow:"hidden",borderRight:"1px solid #e5e7eb"}}>{bill.vendorType?<span title={bill.vendorType} style={{background:"#eff6ff",color:"#2563eb",borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"inline-block",maxWidth:"100%"}}>{bill.vendorType}</span>:<span style={{color:"#d1d5db"}}>—</span>}</td>;
+                        if(k==="type") return <DropdownCell key="type" value={bill.vendorType} options={VENDOR_TYPES} isAdmin={isAdmin} onSave={v=>quickUpdate(bill.id,"vendorType",v)}/>;
                         if(k==="invoice") return isAdmin?<EditCell key="invoice" value={bill.invoiceNumber} style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"invoiceNumber",v)}/>:<TipCell key="invoice" value={bill.invoiceNumber} style={{color:"#6b7280"}}/>;
                         if(k==="amount") return isAdmin?<EditCell key="amount" value={bill.totalAmount?String(bill.totalAmount):""} type="number" style={{textAlign:"right",fontWeight:600,color:"#111"}} onSave={v=>quickUpdate(bill.id,"totalAmount",v)}/>:<TipCell key="amount" value={amtStr} style={{textAlign:"right",fontWeight:600}}/>;
                         if(k==="status") return <td key="status" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}><button onClick={()=>toggleStatus(bill.id)} title={`Mark as ${bill.paymentStatus==="Paid"?"Pending":"Paid"}`} style={{display:"inline-flex",alignItems:"center",gap:4,background:bill.paymentStatus==="Paid"?"#f0fdf4":"#fffbeb",color:bill.paymentStatus==="Paid"?"#16a34a":"#d97706",border:`1px solid ${bill.paymentStatus==="Paid"?"#86efac":"#fcd34d"}`,borderRadius:4,padding:"3px 9px",fontSize:11,fontWeight:500,cursor:"pointer"}}>{bill.paymentStatus==="Paid"?"✓":"⏳"} {bill.paymentStatus}</button></td>;
