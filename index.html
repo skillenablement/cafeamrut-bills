@@ -729,8 +729,10 @@ function LoginScreen({onLogin}){
 
   const handleLogin=async()=>{
     setError("");
-    // Load latest passwords from Supabase before checking
-    _cachedPasswords = await loadPasswordsFromDB();
+    // Use cached passwords (loaded at startup), refresh from DB only if cache is empty
+    if(!_cachedPasswords){
+      _cachedPasswords = await loadPasswordsFromDB();
+    }
     const user=getUsers().find(u=>u.username===username.trim()&&u.password===password);
     if(user){onLogin(user);}
     else{setError("Invalid username or password. Please try again.");}
@@ -1186,6 +1188,7 @@ function App(){
   const [viewBill,setViewBill]=useState(null);
   const [showPaidPage,setShowPaidPage]=useState(false);
   const [showItemizedExport,setShowItemizedExport]=useState(false);
+  const [appReady,setAppReady]=useState(false);
   const [dateSort,setDateSort]=useState("desc");
   const [vendorSort,setVendorSort]=useState(null);
   const [typeSort,setTypeSort]=useState(null);
@@ -1200,16 +1203,31 @@ function App(){
   useEffect(()=>{billsRef.current=bills;},[bills]);
 
   useEffect(()=>{
-    const savedAuth=localStorage.getItem(AUTH_LS);
-    if(savedAuth){try{setCurrentUser(JSON.parse(savedAuth));}catch{}}
-    // Load API key from Supabase
-    loadApiKeyFromDB().then(key=>{
+    const init=async()=>{
+      // Restore saved login
+      const savedAuth=localStorage.getItem(AUTH_LS);
+      if(savedAuth){try{setCurrentUser(JSON.parse(savedAuth));}catch{}}
+
+      // Load API key AND passwords in parallel — wait for both before showing UI
+      const [key, pw] = await Promise.all([
+        loadApiKeyFromDB(),
+        loadPasswordsFromDB()
+      ]);
+
+      // Cache passwords
+      if(pw) _cachedPasswords=pw;
+
+      // Set API key
       if(key){ _cachedApiKey=key; setApiKey(key); }
       else setShowKeyModal(true);
-    });
-    // Pre-load passwords from Supabase into cache
-    loadPasswordsFromDB().then(pw=>{ _cachedPasswords=pw; });
-    loadBills();
+
+      // App is ready — no more loading/race conditions
+      setAppReady(true);
+
+      // Load bills in background
+      loadBills();
+    };
+    init();
   },[]);
 
   const loadBills=async()=>{
@@ -1566,7 +1584,12 @@ function App(){
 
   return(
     <React.Fragment>
-    {!currentUser?<LoginScreen onLogin={handleLogin}/>:
+    {!appReady?(
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:16,background:"#f8fafc",fontFamily:"system-ui,sans-serif"}}>
+        <div style={{width:40,height:40,border:"4px solid #e5e7eb",borderTopColor:"#2563eb",borderRadius:"50%",animation:"spin .8s linear infinite"}}/>
+        <p style={{color:"#6b7280",fontSize:14}}>Loading CafeAmrut Bill Manager…</p>
+      </div>
+    ):!currentUser?<LoginScreen onLogin={handleLogin}/>:
     <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px",fontFamily:"system-ui,sans-serif",color:"#111"}}>
       {showKeyModal&&<ApiKeyModal onSave={handleApiKeySave} currentApiKey={apiKey}/>}
       {showPwModal&&<ChangePasswordModal currentUser={currentUser} onClose={()=>setShowPwModal(false)} onSuccess={()=>{}}/>}
@@ -1793,6 +1816,7 @@ function App(){
       {dupModal&&(<div className="fade" style={{marginTop:12,padding:16,background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10}}><p style={{fontWeight:700,marginBottom:4}}>⚠️ Duplicate bill detected</p><p style={{fontSize:13,color:"#6b7280",marginBottom:12}}>This matches an existing bill. Add it anyway?</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>{[{lbl:"Existing",b:dupModal.eb},{lbl:"New",b:dupModal.nb}].map(({lbl,b})=>(<div key={lbl} style={{background:"#fff",borderRadius:6,padding:"10px 12px",border:"1px solid #e5e7eb",fontSize:12}}><p style={{margin:"0 0 6px",fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase"}}>{lbl}</p>{[["Vendor",b.vendorName],["Invoice",b.invoiceNumber],["Date",b.date?fmtDate(b.date):"—"],["Amount",b.totalAmount?`₹${Number(b.totalAmount).toLocaleString("en-IN")}`:"—"]].map(([k,v])=>(<div key={k} style={{marginBottom:3}}><span style={{color:"#9ca3af"}}>{k}: </span><span style={{fontWeight:600}}>{v||"—"}</span></div>))}</div>))}</div><div style={{display:"flex",gap:8}}><button style={{...C.redBtn,background:"#d97706"}} onClick={()=>{setDupModal(null);dupModal.r(true);}}>Add anyway</button><button style={C.outBtn} onClick={()=>{setDupModal(null);dupModal.r(false);}}>Skip</button></div></div>)}
       {toast&&(<div className="fade" style={{marginTop:12,padding:"10px 16px",background:toast.t==="err"?"#fef2f2":toast.t==="warn"?"#fffbeb":"#f0fdf4",border:`1px solid ${toast.t==="err"?"#fca5a5":toast.t==="warn"?"#fcd34d":"#86efac"}`,borderRadius:8,fontSize:13,fontWeight:600,color:toast.t==="err"?"#dc2626":toast.t==="warn"?"#d97706":"#16a34a"}}>{toast.msg}</div>)}
     </div>}
+    )}
     </React.Fragment>
   );
 }
