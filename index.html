@@ -384,7 +384,8 @@ function PendingDashboard({bills, onClose, onMarkPaid}){
   );
 }
 
-
+</script>
+<script type="text/babel" data-presets="react">
 // ── BILL DETAIL MODAL ──
 function BillDetailModal({bill, onClose}){
   if(!bill) return null;
@@ -560,7 +561,8 @@ function BillDetailModal({bill, onClose}){
   );
 }
 
-
+</script>
+<script type="text/babel" data-presets="react">
 // ── ITEMIZED EXPORT MODAL ──
 function ItemizedExportModal({bills, onClose}){
   const [fromDate,setFromDate]=useState("");
@@ -975,7 +977,8 @@ function UserManagementModal({currentUser, onClose, onUsersUpdated}){
     </div>
   );
 }
-
+</script>
+<script type="text/babel" data-presets="react">
 // ── LOGIN SCREEN ──
 function LoginScreen({onLogin}){
   const [username,setUsername]=useState("");
@@ -1414,7 +1417,8 @@ function ApiKeyModal({onSave, currentApiKey}){
     </div>
   );
 }
-
+</script>
+<script type="text/babel" data-presets="react">
 function App(){
   const [bills,setBills]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -1839,7 +1843,8 @@ function App(){
       <div className="resize-handle" onMouseDown={makeResize(k)} onClick={e=>e.stopPropagation()}><div className="rh-line" style={{width:2,height:"60%",background:"#d1d5db",borderRadius:1}}/></div>
     </th>
   );
-
+</script>
+<script type="text/babel" data-presets="react">
   return(
     <React.Fragment>
     {!appReady?(
@@ -2100,5 +2105,6 @@ if("serviceWorker" in navigator){
   });
 }
 </script>
+
 </body>
 </html>
