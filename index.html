@@ -60,8 +60,48 @@ const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 // API key stored in Supabase settings table (key: "anthropic_api_key")
 const AUTH_LS = "cafe-bill-auth-v1";
-// ── DEFAULT CREDENTIALS (stored in Supabase settings table) ──
-const DEFAULT_PASSWORDS = { admin: "cafeamrut@admin", viewer: "cafeamrut@view" };
+// ── USER SYSTEM — stored in settings table as JSON ──
+const USERS_KEY = "cafe_users_v1";
+const DEFAULT_USERS = [
+  {id:"u-admin", username:"admin",  password:"cafeamrut@admin", perms:["admin"]},
+  {id:"u-viewer",username:"viewer", password:"cafeamrut@view",  perms:["dashboard","download"]},
+];
+const ALL_PERMS = ["edit_fields","edit_status","download","edit_remarks","delete","dashboard","admin"];
+const PERM_LABELS = {
+  edit_fields:  "Edit Invoice / Date / Amount / Vendor / Type + Upload",
+  edit_status:  "Change Paid / Pending Status",
+  download:     "Download Excel & Itemized Bills",
+  edit_remarks: "Edit Remarks",
+  delete:       "Delete Bills",
+  dashboard:    "View Dashboard",
+  admin:        "Admin — Full Access",
+};
+
+let _cachedUsers = null;
+
+const loadUsers = async () => {
+  if(_cachedUsers) return _cachedUsers;
+  try {
+    const timeout = new Promise((_,rej)=>setTimeout(()=>rej(new Error("t")),3000));
+    const query = sbClient.from("settings").select("value").eq("key",USERS_KEY).single();
+    const {data,error} = await Promise.race([query,timeout]);
+    if(!error && data) _cachedUsers = JSON.parse(data.value);
+    else _cachedUsers = [...DEFAULT_USERS];
+  } catch(e) { _cachedUsers = [...DEFAULT_USERS]; }
+  return _cachedUsers;
+};
+
+const saveUsers = async (users) => {
+  _cachedUsers = users;
+  try { await sbClient.from("settings").upsert({key:USERS_KEY, value:JSON.stringify(users)}); }
+  catch(e) { console.error("saveUsers failed",e); }
+};
+
+const can = (user, perm) => {
+  if(!user) return false;
+  const p = user.perms || [];
+  return p.includes("admin") || p.includes(perm);
+};
 
 // ── API KEY — stored in Supabase, not localStorage ──
 let _cachedApiKey = null;
@@ -73,47 +113,11 @@ const loadApiKeyFromDB = async () => {
     const {data,error} = await Promise.race([query, timeout]);
     if(error || !data) return null;
     return data.value;
-  } catch { return null; }
+  } catch(e) { return null; }
 };
 
 const saveApiKeyToDB = async (key) => {
   await sbClient.from("settings").upsert({key:"anthropic_api_key", value:key});
-};
-
-// ── PASSWORDS — stored in Supabase ──
-// Load passwords from Supabase (async)
-const loadPasswordsFromDB = async () => {
-  try {
-    // 3 second timeout — if Supabase unreachable, fall back to defaults immediately
-    const timeout = new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),3000));
-    const query = sbClient.from("settings").select("value").eq("key","passwords").single();
-    const {data,error} = await Promise.race([query, timeout]);
-    if(error || !data) return {...DEFAULT_PASSWORDS};
-    return JSON.parse(data.value);
-  } catch { return {...DEFAULT_PASSWORDS}; }
-};
-
-// Save passwords to Supabase
-const savePasswordsToDB = async (p) => {
-  try {
-    await sbClient.from("settings").upsert({key:"passwords", value:JSON.stringify(p)});
-  } catch(e) { console.error("Could not save passwords:", e); }
-};
-
-// Sync: load from DB then cache locally for this session
-let _cachedPasswords = null;
-const loadPasswords = () => _cachedPasswords || {...DEFAULT_PASSWORDS};
-const savePasswords = async (p) => {
-  _cachedPasswords = p;
-  await savePasswordsToDB(p);
-};
-
-const getUsers = () => {
-  const pw = loadPasswords();
-  return [
-    { username:"admin",  password:pw.admin,  role:"admin"  },
-    { username:"viewer", password:pw.viewer, role:"viewer" },
-  ];
 };
 
 const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
@@ -720,6 +724,219 @@ function ItemizedExportModal({bills, onClose}){
   );
 }
 
+
+// ── USER MANAGEMENT MODAL ──
+function UserMgmtModal({currentUser, onClose}){
+  const [users,setUsers]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [view,setView]=useState("list"); // "list" | "add" | "edit"
+  const [editUser,setEditUser]=useState(null);
+  const [form,setForm]=useState({username:"",password:"",perms:[]});
+  const [err,setErr]=useState({});
+  const [showPw,setShowPw]=useState(false);
+  const [confirmDel,setConfirmDel]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [toast,setToast]=useState(null);
+
+  useEffect(()=>{
+    loadUsers().then(u=>{setUsers(u);setLoading(false);});
+  },[]);
+
+  const notify=(msg,t="ok")=>{setToast({msg,t});setTimeout(()=>setToast(null),3000);};
+
+  const openAdd=()=>{setForm({username:"",password:"",perms:[]});setErr({});setShowPw(false);setEditUser(null);setView("add");};
+  const openEdit=(u)=>{setForm({username:u.username,password:u.password,perms:[...u.perms]});setErr({});setShowPw(false);setEditUser(u);setView("edit");};
+  const backToList=()=>{setView("list");setEditUser(null);};
+
+  const togglePerm=(p)=>{
+    if(p==="admin"){setForm(f=>({...f,perms:f.perms.includes("admin")?[]:["admin"]}));return;}
+    setForm(f=>{
+      const pp=f.perms.filter(x=>x!=="admin");
+      return{...f,perms:pp.includes(p)?pp.filter(x=>x!==p):[...pp,p]};
+    });
+  };
+
+  const validate=()=>{
+    const e={};
+    if(!form.username.trim()||form.username.trim().length<3) e.username="Min. 3 characters.";
+    if(!form.password||form.password.length<4) e.password="Min. 4 characters.";
+    if(form.perms.length===0) e.perms="Select at least one permission.";
+    const dup=users.find(u=>u.username.toLowerCase()===form.username.trim().toLowerCase()&&u.id!==editUser?.id);
+    if(dup) e.username="Username already taken.";
+    setErr(e);return Object.keys(e).length===0;
+  };
+
+  const handleSave=async()=>{
+    if(!validate())return;
+    setSaving(true);
+    try{
+      const all=[...users];
+      if(editUser){
+        const i=all.findIndex(u=>u.id===editUser.id);
+        all[i]={...editUser,username:form.username.trim(),password:form.password,perms:form.perms};
+      } else {
+        all.push({id:"u-"+Date.now(),username:form.username.trim(),password:form.password,perms:form.perms});
+      }
+      await saveUsers(all);
+      setUsers(all);
+      notify(editUser?"User updated!":"User created!");
+      backToList();
+    }catch(e){notify("Could not save.","err");}
+    setSaving(false);
+  };
+
+  const handleDelete=async(id)=>{
+    if(id===currentUser?.id){notify("Cannot delete your own account.","err");return;}
+    const admins=users.filter(u=>u.perms.includes("admin"));
+    if(admins.length===1&&admins[0].id===id){notify("Cannot delete the last admin.","err");return;}
+    try{
+      const all=users.filter(u=>u.id!==id);
+      await saveUsers(all);
+      setUsers(all);
+      setConfirmDel(null);
+      notify("User deleted.");
+    }catch(e){notify("Could not delete.","err");}
+  };
+
+  const permColor={admin:"#7c3aed",edit_fields:"#2563eb",edit_status:"#d97706",
+    download:"#16a34a",edit_remarks:"#92400e",delete:"#dc2626",dashboard:"#be185d"};
+  const permBg={admin:"#f5f3ff",edit_fields:"#eff6ff",edit_status:"#fffbeb",
+    download:"#f0fdf4",edit_remarks:"#fef3c7",delete:"#fef2f2",dashboard:"#fdf2f8"};
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:9999,padding:16,overflowY:"auto"}}>
+      <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:640,boxShadow:"0 24px 60px rgba(0,0,0,0.25)",marginTop:20,marginBottom:20}}>
+        {/* Header */}
+        <div style={{background:"linear-gradient(135deg,#1e3a5f,#7c3aed)",borderRadius:"16px 16px 0 0",padding:"20px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:22}}>👥</span>
+            <div>
+              <h2 style={{fontSize:17,fontWeight:700,color:"#fff",marginBottom:2}}>
+                {view==="list"?"User Management":view==="add"?"Add New User":"Edit User"}
+              </h2>
+              <p style={{fontSize:11,color:"rgba(255,255,255,0.7)"}}>
+                {view==="list"?"Create users and assign permissions":"Set username, password and permissions"}
+              </p>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            {view==="list"&&<button onClick={openAdd} style={{background:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:13,fontWeight:600}}>+ Add User</button>}
+            {view!=="list"&&<button onClick={backToList} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:7,padding:"6px 12px",cursor:"pointer",fontSize:13}}>← Back</button>}
+            <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:7,padding:"6px 12px",cursor:"pointer",fontSize:18,lineHeight:1}}>✕</button>
+          </div>
+        </div>
+
+        <div style={{padding:"20px 24px"}}>
+          {/* LIST VIEW */}
+          {view==="list"&&(
+            loading?(
+              <div style={{textAlign:"center",padding:32,color:"#9ca3af"}}>
+                <div style={{width:28,height:28,border:"3px solid #e5e7eb",borderTopColor:"#7c3aed",borderRadius:"50%",animation:"spin .7s linear infinite",margin:"0 auto 10px"}}/>Loading…
+              </div>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {users.map(u=>(
+                  <div key={u.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:10,border:"1px solid #e5e7eb",background:u.id===currentUser?.id?"#fafaf9":"#fff"}}>
+                    <div style={{width:38,height:38,borderRadius:"50%",background:u.perms.includes("admin")?"#7c3aed":"#2563eb",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:15,flexShrink:0}}>
+                      {u.username[0].toUpperCase()}
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                        <span style={{fontWeight:700,fontSize:14}}>{u.username}</span>
+                        {u.id===currentUser?.id&&<span style={{fontSize:10,background:"#f0fdf4",color:"#16a34a",border:"1px solid #86efac",borderRadius:4,padding:"1px 6px"}}>You</span>}
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                        {u.perms.includes("admin")
+                          ?<span style={{background:"#f5f3ff",color:"#7c3aed",borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:600}}>👑 Admin</span>
+                          :u.perms.map(p=><span key={p} style={{background:permBg[p]||"#f9fafb",color:permColor[p]||"#6b7280",borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:500}}>{(PERM_LABELS[p]||p).split(" ").slice(0,3).join(" ")}</span>)
+                        }
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:6,flexShrink:0}}>
+                      <button onClick={()=>openEdit(u)} style={{background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:6,padding:"5px 10px",fontSize:12,cursor:"pointer"}}>✏️ Edit</button>
+                      {u.id!==currentUser?.id&&<button onClick={()=>setConfirmDel(u)} style={{background:"#fef2f2",color:"#dc2626",border:"1px solid #fca5a5",borderRadius:6,padding:"5px 10px",fontSize:12,cursor:"pointer"}}>🗑</button>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+
+          {/* ADD / EDIT FORM */}
+          {(view==="add"||view==="edit")&&(
+            <div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+                <div>
+                  <label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Username *</label>
+                  <input type="text" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}
+                    placeholder="e.g. john" autoFocus
+                    style={{width:"100%",border:`1px solid ${err.username?"#fca5a5":"#d1d5db"}`,borderRadius:7,padding:"8px 10px",fontSize:13,boxSizing:"border-box"}}/>
+                  {err.username&&<p style={{fontSize:11,color:"#dc2626",marginTop:3}}>{err.username}</p>}
+                </div>
+                <div>
+                  <label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Password *</label>
+                  <div style={{position:"relative"}}>
+                    <input type={showPw?"text":"password"} value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}
+                      placeholder="Min. 4 characters"
+                      style={{width:"100%",border:`1px solid ${err.password?"#fca5a5":"#d1d5db"}`,borderRadius:7,padding:"8px 36px 8px 10px",fontSize:13,boxSizing:"border-box"}}/>
+                    <button onClick={()=>setShowPw(s=>!s)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"#9ca3af",fontSize:14}}>{showPw?"🙈":"👁"}</button>
+                  </div>
+                  {err.password&&<p style={{fontSize:11,color:"#dc2626",marginTop:3}}>{err.password}</p>}
+                </div>
+              </div>
+
+              <label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:8}}>
+                Permissions * {form.perms.includes("admin")&&<span style={{color:"#7c3aed",fontWeight:400,fontSize:10}}> (Admin = all permissions)</span>}
+              </label>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+                {ALL_PERMS.map(p=>{
+                  const sel=form.perms.includes(p);
+                  const disabled=p!=="admin"&&form.perms.includes("admin");
+                  return(
+                    <div key={p} onClick={()=>!disabled&&togglePerm(p)}
+                      style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",borderRadius:8,
+                        border:`1.5px solid ${sel?permColor[p]||"#6b7280":"#e5e7eb"}`,
+                        background:sel?permBg[p]||"#f9fafb":"#fff",
+                        cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.45:1,transition:"all .1s"}}>
+                      <div style={{width:16,height:16,borderRadius:3,border:`2px solid ${sel?permColor[p]||"#6b7280":"#d1d5db"}`,background:sel?permColor[p]||"#6b7280":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>
+                        {sel&&<span style={{color:"#fff",fontSize:10,fontWeight:700}}>✓</span>}
+                      </div>
+                      <span style={{fontSize:12,lineHeight:1.4,fontWeight:sel?600:400,color:sel?permColor[p]||"#374151":"#374151"}}>{PERM_LABELS[p]||p}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {err.perms&&<p style={{fontSize:11,color:"#dc2626",marginBottom:12}}>{err.perms}</p>}
+
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={handleSave} disabled={saving}
+                  style={{flex:1,background:"#7c3aed",color:"#fff",border:"none",borderRadius:8,padding:"10px",fontSize:14,fontWeight:600,cursor:saving?"not-allowed":"pointer",opacity:saving?0.7:1}}>
+                  {saving?"Saving…":editUser?"Save Changes":"Create User"}
+                </button>
+                <button onClick={backToList} style={{background:"#fff",border:"1px solid #d1d5db",borderRadius:8,padding:"10px 20px",fontSize:14,cursor:"pointer"}}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* DELETE CONFIRM */}
+          {confirmDel&&(
+            <div style={{marginTop:12,padding:"14px 16px",background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:10}}>
+              <p style={{fontWeight:700,color:"#dc2626",marginBottom:4}}>Delete "{confirmDel.username}"?</p>
+              <p style={{fontSize:13,color:"#6b7280",marginBottom:12}}>They will lose all access immediately.</p>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>handleDelete(confirmDel.id)} style={{background:"#dc2626",color:"#fff",border:"none",borderRadius:7,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Delete</button>
+                <button onClick={()=>setConfirmDel(null)} style={{background:"#fff",border:"1px solid #d1d5db",borderRadius:7,padding:"7px 14px",fontSize:13,cursor:"pointer"}}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {toast&&<div style={{marginTop:12,padding:"10px 14px",background:toast.t==="err"?"#fef2f2":"#f0fdf4",border:`1px solid ${toast.t==="err"?"#fca5a5":"#86efac"}`,borderRadius:8,fontSize:13,fontWeight:600,color:toast.t==="err"?"#dc2626":"#16a34a"}}>{toast.msg}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── LOGIN SCREEN ──
 function LoginScreen({onLogin}){
   const [username,setUsername]=useState("");
@@ -729,11 +946,8 @@ function LoginScreen({onLogin}){
 
   const handleLogin=async()=>{
     setError("");
-    // Use cached passwords (loaded at startup), refresh from DB only if cache is empty
-    if(!_cachedPasswords){
-      _cachedPasswords = await loadPasswordsFromDB();
-    }
-    const user=getUsers().find(u=>u.username===username.trim()&&u.password===password);
+    const users = await loadUsers();
+    const user = users.find(u=>u.username===username.trim()&&u.password===password);
     if(user){onLogin(user);}
     else{setError("Invalid username or password. Please try again.");}
   };
@@ -1176,7 +1390,8 @@ function App(){
   const [dupModal,setDupModal]=useState(null);
   const [saveStatus,setSaveStatus]=useState("idle");
   const [currentUser,setCurrentUser]=useState(null);
-  const isAdmin = currentUser?.role==="admin";
+  const isAdmin = can(currentUser,"admin");
+  const C_can = (perm) => can(currentUser, perm);
   const [showPwModal,setShowPwModal]=useState(false);
   const [showManualForm,setShowManualForm]=useState(false);
   const emptyManual = ()=>({vendorName:"",vendorType:"",invoiceNumber:"",date:"",totalAmount:"",paymentStatus:"Pending",remarks:""});
@@ -1188,6 +1403,7 @@ function App(){
   const [viewBill,setViewBill]=useState(null);
   const [showPaidPage,setShowPaidPage]=useState(false);
   const [showItemizedExport,setShowItemizedExport]=useState(false);
+  const [showUserMgmt,setShowUserMgmt]=useState(false);
   const [appReady,setAppReady]=useState(false);
   const [dateSort,setDateSort]=useState("desc");
   const [vendorSort,setVendorSort]=useState(null);
@@ -1208,20 +1424,17 @@ function App(){
       const savedAuth=localStorage.getItem(AUTH_LS);
       if(savedAuth){try{setCurrentUser(JSON.parse(savedAuth));}catch{}}
 
-      // Load API key AND passwords in parallel — wait for both before showing UI
-      const [key, pw] = await Promise.all([
+      // Load API key AND users in parallel
+      const [key] = await Promise.all([
         loadApiKeyFromDB(),
-        loadPasswordsFromDB()
+        loadUsers()
       ]);
-
-      // Cache passwords
-      if(pw) _cachedPasswords=pw;
 
       // Set API key
       if(key){ _cachedApiKey=key; setApiKey(key); }
       else setShowKeyModal(true);
 
-      // App is ready — no more loading/race conditions
+      // App is ready
       setAppReady(true);
 
       // Load bills in background
@@ -1593,6 +1806,7 @@ function App(){
     <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px",fontFamily:"system-ui,sans-serif",color:"#111"}}>
       {showKeyModal&&<ApiKeyModal onSave={handleApiKeySave} currentApiKey={apiKey}/>}
       {showPwModal&&<ChangePasswordModal currentUser={currentUser} onClose={()=>setShowPwModal(false)} onSuccess={()=>{}}/>}
+      {showUserMgmt&&<UserMgmtModal currentUser={currentUser} onClose={()=>setShowUserMgmt(false)}/>}
       {showImportModal&&<BulkImportModal onClose={()=>setShowImportModal(false)} onImport={handleBulkImport} onDownloadTemplate={downloadTemplate}/>}
       {showDashboard&&<PendingDashboard bills={bills} onClose={()=>setShowDashboard(false)} onMarkPaid={async(ids)=>{await markMultiplePaid(ids);}}/>}
       {viewBill&&<BillDetailModal bill={viewBill} onClose={()=>setViewBill(null)}/>}
@@ -1608,16 +1822,17 @@ function App(){
           <p style={{fontSize:12,color:"#6b7280"}}>{loading?"Loading bills…":bills.length>0?`${bills.length} bill${bills.length>1?"s":""} · synced to cloud`:"Upload vendor bills · AI extracts details automatically"}</p>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-          {isAdmin&&ns>0&&<button style={C.redBtn} onClick={()=>setDelTarget("bulk")}>🗑 Delete {ns} selected</button>}
-          <button onClick={()=>setShowDashboard(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#1e3a5f",color:"#fff",border:"none",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+          {(isAdmin||C_can("delete"))&&ns>0&&<button style={C.redBtn} onClick={()=>setDelTarget("bulk")}>🗑 Delete {ns} selected</button>}
+          <button onClick={()=>setShowDashboard(true)} disabled={!C_can("dashboard")} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#1e3a5f",color:"#fff",border:"none",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>
             📊 Dashboard
           </button>
-          <button style={C.outBtn} onClick={dlXlsx} disabled={!bills.length}>⬇ Excel</button>
-          <button onClick={()=>setShowItemizedExport(true)} disabled={!bills.length}
+          {C_can("download")&&<button style={C.outBtn} onClick={dlXlsx} disabled={!bills.length}>⬇ Excel</button>}
+          <button onClick={()=>setShowItemizedExport(true)} disabled={!bills.length||!C_can('download')}
             style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:bills.length?"#f0fdf4":"#f9fafb",color:bills.length?"#16a34a":"#9ca3af",border:`1px solid ${bills.length?"#86efac":"#e5e7eb"}`,borderRadius:7,fontSize:13,fontWeight:600,cursor:bills.length?"pointer":"not-allowed"}}>
             📋 Export Itemized Bills
           </button>
           <button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={loadBills} title="Refresh">↻</button>
+          {isAdmin&&<button style={{...C.outBtn,fontSize:12,color:"#7c3aed",padding:"7px 10px",borderColor:"#ddd6fe"}} onClick={()=>setShowUserMgmt(true)} title="Manage Users">👥</button>}
           {isAdmin&&<button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={()=>setShowPwModal(true)} title="Change Passwords">🔐</button>}
           <button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={()=>setShowKeyModal(true)} title="API Key">🔑</button>
           <div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",background:isAdmin?"#eff6ff":"#f0fdf4",border:`1px solid ${isAdmin?"#93c5fd":"#86efac"}`,borderRadius:7}}>
@@ -1670,12 +1885,12 @@ function App(){
         </div>
       )}
 
-      {isAdmin&&!showManualForm&&<div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:8}}>
+      {C_can("edit_fields")&&!showManualForm&&<div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:8}}>
         <button onClick={()=>setShowImportModal(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#16a34a",border:"1px solid #86efac",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>📊 Bulk Import Excel</button>
         <button onClick={()=>setShowManualForm(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#2563eb",border:"1px solid #93c5fd",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>✏️ Add Bill Manually</button>
       </div>}
 
-      {isAdmin&&<div onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);handleFiles(e.dataTransfer.files);}} onClick={()=>!prog&&fileRef.current?.click()} style={{border:`2px dashed ${drag?"#3b82f6":"#d1d5db"}`,borderRadius:12,padding:"24px 20px",textAlign:"center",cursor:prog?"default":"pointer",background:drag?"#eff6ff":"#fff",marginBottom:20,transition:"all .15s"}}>
+      {C_can("edit_fields")&&<div onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);handleFiles(e.dataTransfer.files);}} onClick={()=>!prog&&fileRef.current?.click()} style={{border:`2px dashed ${drag?"#3b82f6":"#d1d5db"}`,borderRadius:12,padding:"24px 20px",textAlign:"center",cursor:prog?"default":"pointer",background:drag?"#eff6ff":"#fff",marginBottom:20,transition:"all .15s"}}>
         <input ref={fileRef} type="file" multiple accept="image/*,application/pdf" style={{display:"none"}} onChange={e=>{handleFiles(e.target.files);e.target.value="";}}/>
         {prog?(<div><p style={{margin:"0 0 10px",fontSize:13,color:"#6b7280"}}>Processing {prog.cur} of {prog.total} — {prog.name}</p><div style={{height:6,background:"#e5e7eb",borderRadius:99,maxWidth:320,margin:"0 auto"}}><div style={{height:"100%",borderRadius:99,background:"#3b82f6",width:`${(prog.cur/prog.total)*100}%`,transition:"width .3s"}}/></div></div>):(<><div style={{fontSize:30,marginBottom:8}}>📎</div><p style={{fontSize:14,fontWeight:600,marginBottom:4}}>Drop bill photos or PDFs here</p><p style={{fontSize:12,color:"#9ca3af"}}>or click to browse · JPG, PNG, PDF · multiple files supported</p></>)}
       </div>}
@@ -1703,7 +1918,7 @@ function App(){
         <button style={{...C.outBtn,fontSize:11,color:"#9ca3af",padding:"5px 10px"}} onClick={()=>{setCols(DEFAULT_COLS);setColOrder(DEFAULT_ORDER);}}>↺ Cols</button>
       </div>
 
-      {isAdmin&&filtered.length>0&&(
+      {(isAdmin||C_can("delete"))&&filtered.length>0&&(
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",
           background:ns>0?"#fef2f2":showPaidPage?"#f0fdf4":"#f9fafb",
           border:`1px solid ${ns>0?"#fca5a5":showPaidPage?"#86efac":"#e5e7eb"}`,
@@ -1773,14 +1988,14 @@ function App(){
                         );
                         if(k==="chk") return <td key="chk" style={{padding:"10px 12px",textAlign:"center",borderRight:"1px solid #e5e7eb"}}><div style={C.chk(isSel)} onClick={()=>toggleSel(bill.id)}>{isSel&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}</div></td>;
                         if(k==="sr") return <TipCell key="sr" value={String(bill.srNo)} style={{color:"#9ca3af"}}/>;
-                        if(k==="vendor") return isAdmin?<EditCell key="vendor" value={bill.vendorName} style={{fontWeight:600}} onSave={v=>quickUpdate(bill.id,"vendorName",v)}/>:<TipCell key="vendor" value={bill.vendorName} style={{fontWeight:600}}/>;
-                        if(k==="type") return <DropdownCell key="type" value={bill.vendorType} options={VENDOR_TYPES} isAdmin={isAdmin} onSave={v=>quickUpdate(bill.id,"vendorType",v)}/>;
-                        if(k==="invoice") return isAdmin?<EditCell key="invoice" value={bill.invoiceNumber} style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"invoiceNumber",v)}/>:<TipCell key="invoice" value={bill.invoiceNumber} style={{color:"#6b7280"}}/>;
-                        if(k==="amount") return isAdmin?<EditCell key="amount" value={bill.totalAmount?String(bill.totalAmount):""} type="number" style={{textAlign:"right",fontWeight:600,color:"#111"}} onSave={v=>quickUpdate(bill.id,"totalAmount",v)}/>:<TipCell key="amount" value={amtStr} style={{textAlign:"right",fontWeight:600}}/>;
-                        if(k==="status") return <td key="status" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}><button onClick={()=>toggleStatus(bill.id)} title={`Mark as ${bill.paymentStatus==="Paid"?"Pending":"Paid"}`} style={{display:"inline-flex",alignItems:"center",gap:4,background:bill.paymentStatus==="Paid"?"#f0fdf4":"#fffbeb",color:bill.paymentStatus==="Paid"?"#16a34a":"#d97706",border:`1px solid ${bill.paymentStatus==="Paid"?"#86efac":"#fcd34d"}`,borderRadius:4,padding:"3px 9px",fontSize:11,fontWeight:500,cursor:"pointer"}}>{bill.paymentStatus==="Paid"?"✓":"⏳"} {bill.paymentStatus}</button></td>;
-                        if(k==="date") return isAdmin?<EditCell key="date" value={bill.date} type="date" style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"date",v)}/>:<TipCell key="date" value={bill.date?fmtDate(bill.date):""} style={{color:"#6b7280"}}/>;
-                        if(k==="remarks") return <RemarksCell key="remarks" value={bill.remarks} isAdmin={isAdmin} onSave={v=>quickUpdate(bill.id,"remarks",v)}/>;
-                        if(k==="actions"&&isAdmin) return <td key="actions" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}><div style={{display:"flex",gap:4,justifyContent:"flex-end"}}><button onClick={()=>setViewBill(bill)} title="View bill details" style={{padding:"4px 8px",background:"transparent",border:"1px solid #bfdbfe",borderRadius:4,cursor:"pointer",fontSize:13}}>👁</button><button onClick={()=>editId===bill.id?(setEditId(null),setEditF({})):(setEditId(bill.id),setEditF({...bill}))} title="Full edit" style={{padding:"4px 8px",background:editId===bill.id?"#eff6ff":"transparent",border:"1px solid #e5e7eb",borderRadius:4,cursor:"pointer",fontSize:13}}>{editId===bill.id?"✕":"✏️"}</button><button onClick={()=>setDelTarget(bill.id)} title="Delete" style={{padding:"4px 8px",background:"transparent",border:"1px solid #fca5a5",borderRadius:4,cursor:"pointer",fontSize:13}}>🗑</button></div></td>;
+                        if(k==="vendor") return C_can("edit_fields")?<EditCell key="vendor" value={bill.vendorName} style={{fontWeight:600}} onSave={v=>quickUpdate(bill.id,"vendorName",v)}/>:<TipCell key="vendor" value={bill.vendorName} style={{fontWeight:600}}/>;
+                        if(k==="type") return <DropdownCell key="type" value={bill.vendorType} options={VENDOR_TYPES} isAdmin={C_can("edit_fields")} onSave={v=>quickUpdate(bill.id,"vendorType",v)}/>;
+                        if(k==="invoice") return C_can("edit_fields")?<EditCell key="invoice" value={bill.invoiceNumber} style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"invoiceNumber",v)}/>:<TipCell key="invoice" value={bill.invoiceNumber} style={{color:"#6b7280"}}/>;
+                        if(k==="amount") return C_can("edit_fields")?<EditCell key="amount" value={bill.totalAmount?String(bill.totalAmount):""} type="number" style={{textAlign:"right",fontWeight:600,color:"#111"}} onSave={v=>quickUpdate(bill.id,"totalAmount",v)}/>:<TipCell key="amount" value={amtStr} style={{textAlign:"right",fontWeight:600}}/>;
+                        if(k==="status") return <td key="status" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}><button onClick={()=>C_can("edit_status")&&toggleStatus(bill.id)} disabled={!C_can("edit_status")} title={`Mark as ${bill.paymentStatus==="Paid"?"Pending":"Paid"}`} style={{display:"inline-flex",alignItems:"center",gap:4,background:bill.paymentStatus==="Paid"?"#f0fdf4":"#fffbeb",color:bill.paymentStatus==="Paid"?"#16a34a":"#d97706",border:`1px solid ${bill.paymentStatus==="Paid"?"#86efac":"#fcd34d"}`,borderRadius:4,padding:"3px 9px",fontSize:11,fontWeight:500,cursor:"pointer"}}>{bill.paymentStatus==="Paid"?"✓":"⏳"} {bill.paymentStatus}</button></td>;
+                        if(k==="date") return C_can("edit_fields")?<EditCell key="date" value={bill.date} type="date" style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"date",v)}/>:<TipCell key="date" value={bill.date?fmtDate(bill.date):""} style={{color:"#6b7280"}}/>;
+                        if(k==="remarks") return <RemarksCell key="remarks" value={bill.remarks} isAdmin={C_can("edit_remarks")} onSave={v=>quickUpdate(bill.id,"remarks",v)}/>;
+                        if(k==="actions"&&isAdmin) return <td key="actions" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}><div style={{display:"flex",gap:4,justifyContent:"flex-end"}}><button onClick={()=>setViewBill(bill)} title="View bill details" style={{padding:"4px 8px",background:"transparent",border:"1px solid #bfdbfe",borderRadius:4,cursor:"pointer",fontSize:13}}>👁</button><button onClick={()=>editId===bill.id?(setEditId(null),setEditF({})):(setEditId(bill.id),setEditF({...bill}))} title="Full edit" style={{padding:"4px 8px",background:editId===bill.id?"#eff6ff":"transparent",border:"1px solid #e5e7eb",borderRadius:4,cursor:"pointer",fontSize:13}}>{editId===bill.id?"✕":"✏️"}</button>{C_can("delete")&&<button onClick={()=>setDelTarget(bill.id)} title="Delete" style={{padding:"4px 8px",background:"transparent",border:"1px solid #fca5a5",borderRadius:4,cursor:"pointer",fontSize:13}}>🗑</button>}</div></td>;
                         return null;
                       })}
                     </tr>
