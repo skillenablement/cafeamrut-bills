@@ -66,14 +66,16 @@ const DEFAULT_USERS = [
   {id:"u-admin", username:"admin",  password:"cafeamrut@admin", perms:["admin"]},
   {id:"u-viewer",username:"viewer", password:"cafeamrut@view",  perms:["dashboard","download"]},
 ];
-const ALL_PERMS = ["edit_fields","edit_status","download","edit_remarks","delete","dashboard","admin"];
+const ALL_PERMS = ["edit_fields","add_manual","edit_status","download","edit_remarks","delete","dashboard","bulk_import","admin"];
 const PERM_LABELS = {
-  edit_fields:  "Edit Invoice / Date / Amount / Vendor / Type + Upload",
+  edit_fields:  "Upload Bills + Edit Invoice / Date / Amount / Vendor / Type",
+  add_manual:   "Add Bill Manually",
   edit_status:  "Change Paid / Pending Status",
   download:     "Download Excel & Itemized Bills",
   edit_remarks: "Edit Remarks",
   delete:       "Delete Bills",
   dashboard:    "View Dashboard",
+  bulk_import:  "Bulk Import from Excel",
   admin:        "Admin — Full Access",
 };
 
@@ -1228,17 +1230,19 @@ function ChangePasswordModal({currentUser, onClose, onSuccess}){
   const handleSave=async(role)=>{
     const f=fields[role];
     const errs={};
-    // Always load latest from DB to verify current password
-    const latestPw = await loadPasswordsFromDB();
-    _cachedPasswords = latestPw;
-    const currentPw=latestPw[role];
+    // Load users from DB to verify & update
+    const users = await loadUsers();
+    // role is "admin" or "viewer" - find the matching user by username
+    const targetUsername = role; // "admin" or "viewer"
+    const targetUser = users.find(u=>u.username===targetUsername);
+    const currentPw = targetUser?.password || "";
     if(role==="admin"&&f.cur!==currentPw) errs.cur="Current password is incorrect.";
     if(!f.newP||f.newP.length<6) errs.newP="New password must be at least 6 characters.";
     if(f.newP!==f.confirm) errs.confirm="Passwords do not match.";
     if(Object.keys(errs).length){setErrors(p=>({...p,[role]:errs}));return;}
-    const pw=loadPasswords();
-    pw[role]=f.newP;
-    savePasswords(pw); // async - saves to Supabase
+    // Update password in user list
+    const updated = users.map(u=>u.username===targetUsername?{...u,password:f.newP}:u);
+    await saveUsers(updated);
     setErrors(p=>({...p,[role]:{}}));
     setFields(p=>({...p,[role]:{cur:"",newP:"",confirm:""}}));
     setSaved(role);
@@ -1458,8 +1462,9 @@ function App(){
     // Just close the modal
     if(action==="close"){ setShowKeyModal(false); return; }
     // Verify admin password before saving
-    const pw=loadPasswords();
-    if(adminPw!==pw.admin){
+    const users = await loadUsers();
+    const adminUser = users.find(u=>u.username==="admin"||u.perms.includes("admin"));
+    if(!adminUser||adminPw!==adminUser.password){
       return "wrong_password";
     }
     try{
@@ -1885,9 +1890,9 @@ function App(){
         </div>
       )}
 
-      {C_can("edit_fields")&&!showManualForm&&<div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:8}}>
-        <button onClick={()=>setShowImportModal(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#16a34a",border:"1px solid #86efac",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>📊 Bulk Import Excel</button>
-        <button onClick={()=>setShowManualForm(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#2563eb",border:"1px solid #93c5fd",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>✏️ Add Bill Manually</button>
+      {(C_can("edit_fields")||C_can("add_manual")||C_can("bulk_import"))&&!showManualForm&&<div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:8}}>
+        {C_can("bulk_import")&&<button onClick={()=>setShowImportModal(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#16a34a",border:"1px solid #86efac",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>📊 Bulk Import Excel</button>}
+        {(C_can("edit_fields")||C_can("add_manual"))&&<button onClick={()=>setShowManualForm(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#2563eb",border:"1px solid #93c5fd",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>✏️ Add Bill Manually</button>}
       </div>}
 
       {C_can("edit_fields")&&<div onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);handleFiles(e.dataTransfer.files);}} onClick={()=>!prog&&fileRef.current?.click()} style={{border:`2px dashed ${drag?"#3b82f6":"#d1d5db"}`,borderRadius:12,padding:"24px 20px",textAlign:"center",cursor:prog?"default":"pointer",background:drag?"#eff6ff":"#fff",marginBottom:20,transition:"all .15s"}}>
