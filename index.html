@@ -60,18 +60,8 @@ const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 // API key stored in Supabase settings table (key: "anthropic_api_key")
 const AUTH_LS = "cafe-bill-auth-v1";
-// ── ALL PERMISSIONS ──
-const ALL_PERMISSIONS = ["upload","edit_fields","edit_status","download","edit_remarks","delete","dashboard","admin"];
-const PERMISSION_LABELS = {
-  upload:       "📎 Upload Bills",
-  edit_fields:  "✏️ Edit Invoice / Date / Amount / Vendor / Type",
-  edit_status:  "🔄 Change Paid / Pending Status",
-  download:     "⬇️ Download Excel & Itemized Bills",
-  edit_remarks: "💬 Edit Remarks",
-  delete:       "🗑️ Delete Bills",
-  dashboard:    "📊 View Dashboard",
-  admin:        "👑 Admin (Full Access — all permissions)"
-};
+// ── DEFAULT CREDENTIALS (stored in Supabase settings table) ──
+const DEFAULT_PASSWORDS = { admin: "cafeamrut@admin", viewer: "cafeamrut@view" };
 
 // ── API KEY — stored in Supabase, not localStorage ──
 let _cachedApiKey = null;
@@ -90,49 +80,41 @@ const saveApiKeyToDB = async (key) => {
   await sbClient.from("settings").upsert({key:"anthropic_api_key", value:key});
 };
 
-// ── USERS — stored in Supabase app_users table ──
-let _cachedUsers = null;
-
-const DEFAULT_USERS = [
-  {id:"default-admin", username:"admin", password:"cafeamrut@admin", permissions:["admin"]},
-  {id:"default-viewer",username:"viewer",password:"cafeamrut@view",  permissions:["dashboard","download"]}
-];
-
-const loadUsersFromDB = async () => {
+// ── PASSWORDS — stored in Supabase ──
+// Load passwords from Supabase (async)
+const loadPasswordsFromDB = async () => {
   try {
-    const timeout = new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),4000));
-    const query = sbClient.from("app_users").select("*").order("created_at",{ascending:true});
-    const {data,error} = await Promise.race([query,timeout]);
-    if(error||!data||data.length===0) return [...DEFAULT_USERS];
-    return data.map(u=>({id:u.id,username:u.username,password:u.password,permissions:u.permissions||[]}));
-  } catch { return [...DEFAULT_USERS]; }
+    // 3 second timeout — if Supabase unreachable, fall back to defaults immediately
+    const timeout = new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),3000));
+    const query = sbClient.from("settings").select("value").eq("key","passwords").single();
+    const {data,error} = await Promise.race([query, timeout]);
+    if(error || !data) return {...DEFAULT_PASSWORDS};
+    return JSON.parse(data.value);
+  } catch { return {...DEFAULT_PASSWORDS}; }
 };
 
-const saveUserToDB = async(user)=>{
-  const {error}=await sbClient.from("app_users").upsert({
-    id:user.id, username:user.username, password:user.password, permissions:user.permissions
-  });
-  if(error)throw error;
-};
-const deleteUserFromDB = async(id)=>{
-  const {error}=await sbClient.from("app_users").delete().eq("id",id);
-  if(error)throw error;
+// Save passwords to Supabase
+const savePasswordsToDB = async (p) => {
+  try {
+    await sbClient.from("settings").upsert({key:"passwords", value:JSON.stringify(p)});
+  } catch(e) { console.error("Could not save passwords:", e); }
 };
 
-// Check if a user has a given permission
-const hasPerm=(user,perm)=>{
-  if(!user)return false;
-  const perms=user.permissions||[];
-  return perms.includes("admin")||perms.includes(perm);
+// Sync: load from DB then cache locally for this session
+let _cachedPasswords = null;
+const loadPasswords = () => _cachedPasswords || {...DEFAULT_PASSWORDS};
+const savePasswords = async (p) => {
+  _cachedPasswords = p;
+  await savePasswordsToDB(p);
 };
 
-// Legacy shims — keep old code working
-const loadPasswordsFromDB=async()=>{ if(!_cachedUsers)_cachedUsers=await loadUsersFromDB(); return {}; };
-const savePasswordsToDB=async()=>{};
-let _cachedPasswords={};
-const loadPasswords=()=>({});
-const savePasswords=async()=>{};
-const getUsers=()=>(_cachedUsers||DEFAULT_USERS);
+const getUsers = () => {
+  const pw = loadPasswords();
+  return [
+    { username:"admin",  password:pw.admin,  role:"admin"  },
+    { username:"viewer", password:pw.viewer, role:"viewer" },
+  ];
+};
 
 const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
 const DEFAULT_COLS = {thumb:70,chk:44,sr:44,vendor:160,type:100,invoice:120,amount:105,status:95,date:105,remarks:140,actions:85};
@@ -385,18 +367,6 @@ function PendingDashboard({bills, onClose, onMarkPaid}){
 }
 
 
-
-// Export shared globals for other scripts
-
-const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
-const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
-const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
-const hasPerm = window.__hasPerm||(()=>false);
-const buildRemark = window.__buildRemark||(()=>"");
-const appendRemark = window.__appendRemark||((e,n)=>n);
-</script>
-<script type="text/babel" data-presets="react">
-const {useState,useEffect,useRef,useCallback} = React;
 // ── BILL DETAIL MODAL ──
 function BillDetailModal({bill, onClose}){
   if(!bill) return null;
@@ -573,16 +543,6 @@ function BillDetailModal({bill, onClose}){
 }
 
 
-
-const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
-const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
-const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
-const hasPerm = window.__hasPerm||(()=>false);
-const buildRemark = window.__buildRemark||(()=>"");
-const appendRemark = window.__appendRemark||((e,n)=>n);
-</script>
-<script type="text/babel" data-presets="react">
-const {useState,useEffect,useRef,useCallback} = React;
 // ── ITEMIZED EXPORT MODAL ──
 function ItemizedExportModal({bills, onClose}){
   const [fromDate,setFromDate]=useState("");
@@ -760,264 +720,6 @@ function ItemizedExportModal({bills, onClose}){
   );
 }
 
-
-
-const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
-const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
-const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
-const hasPerm = window.__hasPerm||(()=>false);
-const buildRemark = window.__buildRemark||(()=>"");
-const appendRemark = window.__appendRemark||((e,n)=>n);
-</script>
-<script type="text/babel" data-presets="react">
-const {useState,useEffect,useRef,useCallback} = React;
-// ── USER MANAGEMENT MODAL ──
-function UserManagementModal({currentUser, onClose, onUsersUpdated}){
-  const [users,setUsers]=useState([]);
-  const [loading,setLoading]=useState(true);
-  const [showForm,setShowForm]=useState(false);
-  const [editingUser,setEditingUser]=useState(null);
-  const [form,setForm]=useState({username:"",password:"",permissions:[]});
-  const [formErrors,setFormErrors]=useState({});
-  const [saving,setSaving]=useState(false);
-  const [showPw,setShowPw]=useState(false);
-  const [confirmDelete,setConfirmDelete]=useState(null);
-  const [toast,setToast]=useState(null);
-
-  const notify=(msg,t="ok")=>{setToast({msg,t});setTimeout(()=>setToast(null),3000);};
-
-  useEffect(()=>{
-    loadUsersFromDB().then(u=>{setUsers(u);setLoading(false);});
-  },[]);
-
-  const emptyForm=()=>({username:"",password:"",permissions:[]});
-
-  const startAdd=()=>{setEditingUser(null);setForm(emptyForm());setFormErrors({});setShowPw(false);setShowForm(true);};
-  const startEdit=(u)=>{setEditingUser(u);setForm({username:u.username,password:u.password,permissions:[...u.permissions]});setFormErrors({});setShowPw(false);setShowForm(true);};
-  const cancelForm=()=>{setShowForm(false);setEditingUser(null);setForm(emptyForm());};
-
-  const togglePerm=(perm)=>{
-    if(perm==="admin"){
-      // If admin selected, set only admin; if deselected, clear all
-      setForm(p=>({...p,permissions:p.permissions.includes("admin")?[]:["admin"]}));
-    } else {
-      setForm(p=>{
-        const perms=p.permissions.filter(x=>x!=="admin"); // remove admin if selecting individual
-        return {...p,permissions:perms.includes(perm)?perms.filter(x=>x!==perm):[...perms,perm]};
-      });
-    }
-  };
-
-  const handleSave=async()=>{
-    const errs={};
-    if(!form.username.trim()) errs.username="Username is required.";
-    if(form.username.trim().length<3) errs.username="Username must be at least 3 characters.";
-    if(!form.password||form.password.length<4) errs.password="Password must be at least 4 characters.";
-    if(form.permissions.length===0) errs.permissions="Select at least one permission.";
-    // Check duplicate username (excluding self)
-    const dup=users.find(u=>u.username.toLowerCase()===form.username.trim().toLowerCase()&&u.id!==editingUser?.id);
-    if(dup) errs.username="Username already exists.";
-    if(Object.keys(errs).length){setFormErrors(errs);return;}
-
-    setSaving(true);
-    try{
-      const user={
-        id:editingUser?.id||crypto.randomUUID(),
-        username:form.username.trim(),
-        password:form.password,
-        permissions:form.permissions
-      };
-      await saveUserToDB(user);
-      _cachedUsers=await loadUsersFromDB();
-      setUsers([..._cachedUsers]);
-      onUsersUpdated&&onUsersUpdated(_cachedUsers);
-      cancelForm();
-      notify(editingUser?"User updated!":"User created!");
-    }catch(e){notify("Could not save user: "+e.message,"err");}
-    setSaving(false);
-  };
-
-  const handleDelete=async(id)=>{
-    if(id===currentUser?.id){notify("You cannot delete your own account.","err");return;}
-    // Prevent deleting last admin
-    const admins=users.filter(u=>u.permissions.includes("admin"));
-    if(admins.length===1&&admins[0].id===id){notify("Cannot delete the last admin account.","err");return;}
-    try{
-      await deleteUserFromDB(id);
-      _cachedUsers=await loadUsersFromDB();
-      setUsers([..._cachedUsers]);
-      onUsersUpdated&&onUsersUpdated(_cachedUsers);
-      setConfirmDelete(null);
-      notify("User deleted.");
-    }catch(e){notify("Could not delete: "+e.message,"err");}
-  };
-
-  const permColor=(perm)=>({
-    admin:"#7c3aed",upload:"#2563eb",edit_fields:"#0891b2",edit_status:"#d97706",
-    download:"#16a34a",edit_remarks:"#92400e",delete:"#dc2626",dashboard:"#be185d"
-  }[perm]||"#6b7280");
-
-  const permBg=(perm)=>({
-    admin:"#f5f3ff",upload:"#eff6ff",edit_fields:"#ecfeff",edit_status:"#fffbeb",
-    download:"#f0fdf4",edit_remarks:"#fef3c7",delete:"#fef2f2",dashboard:"#fdf2f8"
-  }[perm]||"#f9fafb");
-
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:9999,padding:"16px",overflowY:"auto"}}>
-      <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:700,boxShadow:"0 24px 60px rgba(0,0,0,0.25)",marginTop:20,marginBottom:20}}>
-
-        {/* Header */}
-        <div style={{background:"linear-gradient(135deg,#1e3a5f,#7c3aed)",borderRadius:"16px 16px 0 0",padding:"20px 24px"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:24}}>👥</span>
-              <div>
-                <h2 style={{fontSize:18,fontWeight:700,color:"#fff",marginBottom:2}}>User Management</h2>
-                <p style={{fontSize:12,color:"rgba(255,255,255,0.7)"}}>Create users and assign their permissions</p>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              {!showForm&&<button onClick={startAdd}
-                style={{background:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:13,fontWeight:600}}>
-                + Add User
-              </button>}
-              <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:8,padding:"7px 12px",cursor:"pointer",fontSize:18,lineHeight:1}}>✕</button>
-            </div>
-          </div>
-        </div>
-
-        <div style={{padding:"20px 24px"}}>
-          {/* ADD/EDIT FORM */}
-          {showForm&&(
-            <div style={{background:"#f8fafc",border:"1px solid #e5e7eb",borderRadius:12,padding:"20px",marginBottom:20}}>
-              <h3 style={{fontSize:15,fontWeight:700,color:"#1e3a5f",marginBottom:16}}>{editingUser?"✏️ Edit User":"➕ New User"}</h3>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-                <div>
-                  <label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Username *</label>
-                  <input type="text" value={form.username} onChange={e=>setForm(p=>({...p,username:e.target.value}))}
-                    placeholder="e.g. john_doe"
-                    style={{width:"100%",border:`1px solid ${formErrors.username?"#fca5a5":"#d1d5db"}`,borderRadius:7,padding:"8px 10px",fontSize:13,boxSizing:"border-box"}}/>
-                  {formErrors.username&&<p style={{fontSize:11,color:"#dc2626",marginTop:3}}>{formErrors.username}</p>}
-                </div>
-                <div>
-                  <label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:4}}>Password *</label>
-                  <div style={{position:"relative"}}>
-                    <input type={showPw?"text":"password"} value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))}
-                      placeholder="Min. 4 characters"
-                      style={{width:"100%",border:`1px solid ${formErrors.password?"#fca5a5":"#d1d5db"}`,borderRadius:7,padding:"8px 36px 8px 10px",fontSize:13,boxSizing:"border-box"}}/>
-                    <button onClick={()=>setShowPw(s=>!s)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"#9ca3af",fontSize:14}}>{showPw?"🙈":"👁"}</button>
-                  </div>
-                  {formErrors.password&&<p style={{fontSize:11,color:"#dc2626",marginTop:3}}>{formErrors.password}</p>}
-                </div>
-              </div>
-
-              {/* Permissions */}
-              <div>
-                <label style={{display:"block",fontSize:11,fontWeight:600,color:"#374151",marginBottom:8}}>Permissions * {form.permissions.includes("admin")&&<span style={{color:"#7c3aed",fontSize:10}}>(Admin = all permissions)</span>}</label>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:8}}>
-                  {ALL_PERMISSIONS.map(perm=>{
-                    const selected=form.permissions.includes(perm);
-                    const isAdminPerm=perm==="admin";
-                    const disabledByAdmin=!isAdminPerm&&form.permissions.includes("admin");
-                    return(
-                      <div key={perm} onClick={()=>!disabledByAdmin&&togglePerm(perm)}
-                        style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,
-                          border:`1.5px solid ${selected?permColor(perm):"#e5e7eb"}`,
-                          background:selected?permBg(perm):"#fff",
-                          cursor:disabledByAdmin?"not-allowed":"pointer",
-                          opacity:disabledByAdmin?0.5:1,transition:"all .12s"}}>
-                        <div style={{width:16,height:16,borderRadius:3,border:`2px solid ${selected?permColor(perm):"#d1d5db"}`,background:selected?permColor(perm):"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                          {selected&&<span style={{color:"#fff",fontSize:10,fontWeight:700}}>✓</span>}
-                        </div>
-                        <span style={{fontSize:12,fontWeight:selected?600:400,color:selected?permColor(perm):"#374151"}}>{PERMISSION_LABELS[perm]}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {formErrors.permissions&&<p style={{fontSize:11,color:"#dc2626",marginTop:6}}>{formErrors.permissions}</p>}
-              </div>
-
-              <div style={{display:"flex",gap:8,marginTop:16}}>
-                <button onClick={handleSave} disabled={saving}
-                  style={{background:"#2563eb",color:"#fff",border:"none",borderRadius:7,padding:"9px 20px",fontSize:13,fontWeight:600,cursor:saving?"not-allowed":"pointer",opacity:saving?0.7:1}}>
-                  {saving?"Saving…":editingUser?"Save Changes":"Create User"}
-                </button>
-                <button onClick={cancelForm} style={{background:"#fff",color:"#374151",border:"1px solid #d1d5db",borderRadius:7,padding:"9px 14px",fontSize:13,cursor:"pointer"}}>Cancel</button>
-              </div>
-            </div>
-          )}
-
-          {/* USER LIST */}
-          {loading?(
-            <div style={{textAlign:"center",padding:"32px",color:"#9ca3af"}}>
-              <div style={{width:28,height:28,border:"3px solid #e5e7eb",borderTopColor:"#7c3aed",borderRadius:"50%",animation:"spin .7s linear infinite",margin:"0 auto 10px"}}/>
-              Loading users…
-            </div>
-          ):(
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {users.map(u=>(
-                <div key={u.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:10,border:"1px solid #e5e7eb",background:u.id===currentUser?.id?"#fafaf9":"#fff"}}>
-                  {/* Avatar */}
-                  <div style={{width:38,height:38,borderRadius:"50%",background:u.permissions.includes("admin")?"#7c3aed":"#2563eb",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14,flexShrink:0}}>
-                    {u.username[0].toUpperCase()}
-                  </div>
-                  {/* Info */}
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-                      <span style={{fontWeight:700,fontSize:14}}>{u.username}</span>
-                      {u.id===currentUser?.id&&<span style={{fontSize:10,background:"#f0fdf4",color:"#16a34a",border:"1px solid #86efac",borderRadius:4,padding:"1px 6px"}}>You</span>}
-                    </div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                      {u.permissions.includes("admin")
-                        ?<span style={{background:"#f5f3ff",color:"#7c3aed",borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:600}}>👑 Admin</span>
-                        :u.permissions.map(p=>(
-                          <span key={p} style={{background:permBg(p),color:permColor(p),borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:500}}>{PERMISSION_LABELS[p]?.replace(/^[^\w]*/,"").split(" ").slice(0,3).join(" ")}</span>
-                        ))
-                      }
-                    </div>
-                  </div>
-                  {/* Actions */}
-                  <div style={{display:"flex",gap:6,flexShrink:0}}>
-                    <button onClick={()=>startEdit(u)} style={{background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:6,padding:"5px 10px",fontSize:12,cursor:"pointer"}}>✏️ Edit</button>
-                    {u.id!==currentUser?.id&&(
-                      <button onClick={()=>setConfirmDelete(u)} style={{background:"#fef2f2",color:"#dc2626",border:"1px solid #fca5a5",borderRadius:6,padding:"5px 10px",fontSize:12,cursor:"pointer"}}>🗑</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Delete confirm */}
-          {confirmDelete&&(
-            <div style={{marginTop:12,padding:"14px 16px",background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:10}}>
-              <p style={{fontWeight:700,color:"#dc2626",marginBottom:4}}>Delete user "{confirmDelete.username}"?</p>
-              <p style={{fontSize:13,color:"#6b7280",marginBottom:12}}>This cannot be undone. The user will lose all access.</p>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>handleDelete(confirmDelete.id)} style={{background:"#dc2626",color:"#fff",border:"none",borderRadius:7,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Delete</button>
-                <button onClick={()=>setConfirmDelete(null)} style={{background:"#fff",border:"1px solid #d1d5db",borderRadius:7,padding:"7px 14px",fontSize:13,cursor:"pointer"}}>Cancel</button>
-              </div>
-            </div>
-          )}
-
-          {/* Toast */}
-          {toast&&<div style={{marginTop:12,padding:"10px 14px",background:toast.t==="err"?"#fef2f2":"#f0fdf4",border:`1px solid ${toast.t==="err"?"#fca5a5":"#86efac"}`,borderRadius:8,fontSize:13,fontWeight:600,color:toast.t==="err"?"#dc2626":"#16a34a"}}>{toast.msg}</div>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
-const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
-const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
-const hasPerm = window.__hasPerm||(()=>false);
-const buildRemark = window.__buildRemark||(()=>"");
-const appendRemark = window.__appendRemark||((e,n)=>n);
-</script>
-<script type="text/babel" data-presets="react">
-const {useState,useEffect,useRef,useCallback} = React;
 // ── LOGIN SCREEN ──
 function LoginScreen({onLogin}){
   const [username,setUsername]=useState("");
@@ -1027,11 +729,11 @@ function LoginScreen({onLogin}){
 
   const handleLogin=async()=>{
     setError("");
-    // Use cached users (loaded at startup)
-    if(!_cachedUsers||_cachedUsers.length===0){
-      _cachedUsers = await loadUsersFromDB();
+    // Use cached passwords (loaded at startup), refresh from DB only if cache is empty
+    if(!_cachedPasswords){
+      _cachedPasswords = await loadPasswordsFromDB();
     }
-    const user=(_cachedUsers||[]).find(u=>u.username===username.trim()&&u.password===password);
+    const user=getUsers().find(u=>u.username===username.trim()&&u.password===password);
     if(user){onLogin(user);}
     else{setError("Invalid username or password. Please try again.");}
   };
@@ -1301,16 +1003,6 @@ function RemarksCell({value, onSave, isAdmin}){
   );
 }
 
-
-const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
-const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
-const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
-const hasPerm = window.__hasPerm||(()=>false);
-const buildRemark = window.__buildRemark||(()=>"");
-const appendRemark = window.__appendRemark||((e,n)=>n);
-</script>
-<script type="text/babel" data-presets="react">
-const {useState,useEffect,useRef,useCallback} = React;
 // ── CHANGE PASSWORD MODAL ──
 function ChangePasswordModal({currentUser, onClose, onSuccess}){
   const [tab,setTab]=useState("admin"); // which user's password to change
@@ -1467,15 +1159,6 @@ function ApiKeyModal({onSave, currentApiKey}){
   );
 }
 
-const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
-const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
-const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
-const hasPerm = window.__hasPerm||(()=>false);
-const buildRemark = window.__buildRemark||(()=>"");
-const appendRemark = window.__appendRemark||((e,n)=>n);</script>
-<script type="text/babel" data-presets="react">
-const {useState,useEffect,useRef,useCallback} = React;
-
 function App(){
   const [bills,setBills]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -1493,8 +1176,7 @@ function App(){
   const [dupModal,setDupModal]=useState(null);
   const [saveStatus,setSaveStatus]=useState("idle");
   const [currentUser,setCurrentUser]=useState(null);
-  const isAdmin = hasPerm(currentUser,"admin");
-  const can = (perm) => hasPerm(currentUser, perm);
+  const isAdmin = currentUser?.role==="admin";
   const [showPwModal,setShowPwModal]=useState(false);
   const [showManualForm,setShowManualForm]=useState(false);
   const emptyManual = ()=>({vendorName:"",vendorType:"",invoiceNumber:"",date:"",totalAmount:"",paymentStatus:"Pending",remarks:""});
@@ -1506,7 +1188,6 @@ function App(){
   const [viewBill,setViewBill]=useState(null);
   const [showPaidPage,setShowPaidPage]=useState(false);
   const [showItemizedExport,setShowItemizedExport]=useState(false);
-  const [showUserMgmt,setShowUserMgmt]=useState(false);
   const [appReady,setAppReady]=useState(false);
   const [dateSort,setDateSort]=useState("desc");
   const [vendorSort,setVendorSort]=useState(null);
@@ -1527,14 +1208,14 @@ function App(){
       const savedAuth=localStorage.getItem(AUTH_LS);
       if(savedAuth){try{setCurrentUser(JSON.parse(savedAuth));}catch{}}
 
-      // Load API key AND users in parallel — wait for both before showing UI
-      const [key, users] = await Promise.all([
+      // Load API key AND passwords in parallel — wait for both before showing UI
+      const [key, pw] = await Promise.all([
         loadApiKeyFromDB(),
-        loadUsersFromDB()
+        loadPasswordsFromDB()
       ]);
 
-      // Cache users
-      if(users&&users.length>0) _cachedUsers=users;
+      // Cache passwords
+      if(pw) _cachedPasswords=pw;
 
       // Set API key
       if(key){ _cachedApiKey=key; setApiKey(key); }
@@ -1916,7 +1597,6 @@ function App(){
       {showDashboard&&<PendingDashboard bills={bills} onClose={()=>setShowDashboard(false)} onMarkPaid={async(ids)=>{await markMultiplePaid(ids);}}/>}
       {viewBill&&<BillDetailModal bill={viewBill} onClose={()=>setViewBill(null)}/>}
       {showItemizedExport&&<ItemizedExportModal bills={bills} onClose={()=>setShowItemizedExport(false)}/>}
-      {showUserMgmt&&<UserManagementModal currentUser={currentUser} onClose={()=>setShowUserMgmt(false)} onUsersUpdated={(u)=>{_cachedUsers=u;}}/>}
 
       {/* HEADER */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:10}}>
@@ -1928,21 +1608,20 @@ function App(){
           <p style={{fontSize:12,color:"#6b7280"}}>{loading?"Loading bills…":bills.length>0?`${bills.length} bill${bills.length>1?"s":""} · synced to cloud`:"Upload vendor bills · AI extracts details automatically"}</p>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-          {can("delete")&&ns>0&&<button style={C.redBtn} onClick={()=>setDelTarget("bulk")}>🗑 Delete {ns} selected</button>}
-          <button onClick={()=>setShowDashboard(true)} disabled={!can('dashboard')} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#1e3a5f",color:"#fff",border:"none",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+          {isAdmin&&ns>0&&<button style={C.redBtn} onClick={()=>setDelTarget("bulk")}>🗑 Delete {ns} selected</button>}
+          <button onClick={()=>setShowDashboard(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#1e3a5f",color:"#fff",border:"none",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>
             📊 Dashboard
           </button>
-          {can("download")&&<button style={C.outBtn} onClick={dlXlsx} disabled={!bills.length}>⬇ Excel</button>}
-          {can("download")&&<button onClick={()=>setShowItemizedExport(true)} disabled={!bills.length}
+          <button style={C.outBtn} onClick={dlXlsx} disabled={!bills.length}>⬇ Excel</button>
+          <button onClick={()=>setShowItemizedExport(true)} disabled={!bills.length}
             style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:bills.length?"#f0fdf4":"#f9fafb",color:bills.length?"#16a34a":"#9ca3af",border:`1px solid ${bills.length?"#86efac":"#e5e7eb"}`,borderRadius:7,fontSize:13,fontWeight:600,cursor:bills.length?"pointer":"not-allowed"}}>
             📋 Export Itemized Bills
           </button>
           <button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={loadBills} title="Refresh">↻</button>
-          {isAdmin&&<button style={{...C.outBtn,fontSize:12,color:"#7c3aed",padding:"7px 10px",border:"1px solid #ddd6fe"}} onClick={()=>setShowUserMgmt(true)} title="Manage Users">👥 Users</button>}
           {isAdmin&&<button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={()=>setShowPwModal(true)} title="Change Passwords">🔐</button>}
           <button style={{...C.outBtn,fontSize:12,color:"#9ca3af",padding:"7px 10px"}} onClick={()=>setShowKeyModal(true)} title="API Key">🔑</button>
           <div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",background:isAdmin?"#eff6ff":"#f0fdf4",border:`1px solid ${isAdmin?"#93c5fd":"#86efac"}`,borderRadius:7}}>
-            <span style={{fontSize:11,fontWeight:700,color:isAdmin?"#2563eb":"#7c3aed"}}>{isAdmin?"👑 Admin":currentUser?.username}</span>
+            <span style={{fontSize:11,fontWeight:700,color:isAdmin?"#2563eb":"#16a34a"}}>{isAdmin?"👑 Admin":"👁 Viewer"}</span>
             <span style={{fontSize:11,color:"#9ca3af"}}>({currentUser?.username})</span>
             <button onClick={handleLogout} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#9ca3af",padding:"0 0 0 4px"}} title="Sign out">⏻</button>
           </div>
@@ -1963,7 +1642,9 @@ function App(){
         ))}
       </div>
 
-      {!isAdmin&&!can("upload")&&!can("edit_fields")&&!can("edit_status")&&!can("delete")&&!can("edit_remarks")&&<div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,color:"#16a34a",display:"flex",alignItems:"center",gap:8}}>👁 <strong>Viewer mode</strong> — You can view and download bills. Contact admin to make changes.</div>}
+      {!isAdmin&&<div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,color:"#16a34a",display:"flex",alignItems:"center",gap:8}}>
+        👁 <strong>Viewer mode</strong> — You can view and download bills. Contact admin to make changes.
+      </div>}
 
       {/* MANUAL ADD FORM */}
       {isAdmin&&showManualForm&&(
@@ -1989,12 +1670,12 @@ function App(){
         </div>
       )}
 
-      {(can("upload")||isAdmin)&&!showManualForm&&<div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:8}}>
-        {can("upload")&&<button onClick={()=>setShowImportModal(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#16a34a",border:"1px solid #86efac",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>📊 Bulk Import Excel</button>}
-        {can("upload")&&<button onClick={()=>setShowManualForm(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#2563eb",border:"1px solid #93c5fd",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>✏️ Add Bill Manually</button>}
+      {isAdmin&&!showManualForm&&<div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:8}}>
+        <button onClick={()=>setShowImportModal(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#16a34a",border:"1px solid #86efac",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>📊 Bulk Import Excel</button>
+        <button onClick={()=>setShowManualForm(true)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:"#fff",color:"#2563eb",border:"1px solid #93c5fd",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer"}}>✏️ Add Bill Manually</button>
       </div>}
 
-      {can("upload")&&<div onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);handleFiles(e.dataTransfer.files);}} onClick={()=>!prog&&fileRef.current?.click()} style={{border:`2px dashed ${drag?"#3b82f6":"#d1d5db"}`,borderRadius:12,padding:"24px 20px",textAlign:"center",cursor:prog?"default":"pointer",background:drag?"#eff6ff":"#fff",marginBottom:20,transition:"all .15s"}}>
+      {isAdmin&&<div onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);handleFiles(e.dataTransfer.files);}} onClick={()=>!prog&&fileRef.current?.click()} style={{border:`2px dashed ${drag?"#3b82f6":"#d1d5db"}`,borderRadius:12,padding:"24px 20px",textAlign:"center",cursor:prog?"default":"pointer",background:drag?"#eff6ff":"#fff",marginBottom:20,transition:"all .15s"}}>
         <input ref={fileRef} type="file" multiple accept="image/*,application/pdf" style={{display:"none"}} onChange={e=>{handleFiles(e.target.files);e.target.value="";}}/>
         {prog?(<div><p style={{margin:"0 0 10px",fontSize:13,color:"#6b7280"}}>Processing {prog.cur} of {prog.total} — {prog.name}</p><div style={{height:6,background:"#e5e7eb",borderRadius:99,maxWidth:320,margin:"0 auto"}}><div style={{height:"100%",borderRadius:99,background:"#3b82f6",width:`${(prog.cur/prog.total)*100}%`,transition:"width .3s"}}/></div></div>):(<><div style={{fontSize:30,marginBottom:8}}>📎</div><p style={{fontSize:14,fontWeight:600,marginBottom:4}}>Drop bill photos or PDFs here</p><p style={{fontSize:12,color:"#9ca3af"}}>or click to browse · JPG, PNG, PDF · multiple files supported</p></>)}
       </div>}
@@ -2022,7 +1703,7 @@ function App(){
         <button style={{...C.outBtn,fontSize:11,color:"#9ca3af",padding:"5px 10px"}} onClick={()=>{setCols(DEFAULT_COLS);setColOrder(DEFAULT_ORDER);}}>↺ Cols</button>
       </div>
 
-      {(isAdmin||can("delete"))&&filtered.length>0&&(
+      {isAdmin&&filtered.length>0&&(
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",
           background:ns>0?"#fef2f2":showPaidPage?"#f0fdf4":"#f9fafb",
           border:`1px solid ${ns>0?"#fca5a5":showPaidPage?"#86efac":"#e5e7eb"}`,
@@ -2049,7 +1730,7 @@ function App(){
             <colgroup>{colOrder.filter(k=>k!=="chk"||isAdmin).map(k=><col key={k} style={{width:cols[k]||80}}/>)}</colgroup>
             <thead>
               <tr>
-                {colOrder.filter(k=>k!=="chk"||(isAdmin||can("delete"))).map(k=>{
+                {colOrder.filter(k=>k!=="chk"||isAdmin).map(k=>{
                   if(k==="thumb") return(
                     <th key="thumb" draggable onDragStart={e=>{e.stopPropagation();handleDragStart("thumb");}} onDragEnter={e=>{e.preventDefault();handleDragEnter("thumb");}} onDragOver={e=>e.preventDefault()} onDragEnd={handleDragEnd}
                       style={{width:cols.thumb,padding:0,position:"relative",borderRight:"1px solid #e5e7eb",background:dragOverCol.current==="thumb"?"#dbeafe":"#f9fafb",cursor:"grab",userSelect:"none",transition:"background 0.15s"}}>
@@ -2072,7 +1753,7 @@ function App(){
                   if(k==="status") return <TH key="status" k="status" label="Status" align="right"/>;
                   if(k==="date") return <TH key="date" k="date" label={<span style={{display:"inline-flex",alignItems:"center",gap:3}}><SortBadge label="✏ Date" sort={dateSort} color="#2563eb" bg="#eff6ff" border="#bfdbfe"/></span>} onClick={()=>{setDateSort(s=>s==="asc"?"desc":"asc");setVendorSort(null);setAmountSort(null);setTypeSort(null);}}/>;
                   if(k==="remarks") return <TH key="remarks" k="remarks" label="Remarks" align="center"/>;
-                  if(k==="actions"&&(isAdmin||can("delete")||can("edit_fields")||can("edit_status"))) return <TH key="actions" k="actions" label="Actions" align="right"/>;
+                  if(k==="actions"&&isAdmin) return <TH key="actions" k="actions" label="Actions" align="right"/>;
                   return null;
                 })}
               </tr>
@@ -2084,34 +1765,26 @@ function App(){
                 return(
                   <React.Fragment key={bill.id}>
                     <tr className={isSel?"sel":""} style={{background:isSel?"#fef2f2":newlyImportedIds.has(bill.id)?"#dcfce7":idx%2===0?"#fff":"#fafafa",transition:"background 2s ease"}}>
-                      {colOrder.filter(k=>k!=="chk"||(isAdmin||can("delete"))).map(k=>{
+                      {colOrder.filter(k=>k!=="chk"||isAdmin).map(k=>{
                         if(k==="thumb") return(
                           <td key="thumb" style={{padding:"6px 8px",textAlign:"center",borderRight:"1px solid #e5e7eb",overflow:"visible",cursor:"pointer"}} onClick={()=>setViewBill(bill)} title="Click to view bill details">
                             {bill.thumbnail?<img src={bill.thumbnail} style={{width:44,height:44,objectFit:"cover",borderRadius:6,border:"1px solid #e5e7eb",display:"block",margin:"0 auto"}}/>:<div style={{width:44,height:44,background:"#f3f4f6",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",fontSize:18}}>🧾</div>}
                           </td>
                         );
-                        if(k==="chk"&&(isAdmin||can("delete"))) return <td key="chk" style={{padding:"10px 12px",textAlign:"center",borderRight:"1px solid #e5e7eb"}}><div style={C.chk(isSel)} onClick={()=>toggleSel(bill.id)}>{isSel&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}</div></td>;
+                        if(k==="chk") return <td key="chk" style={{padding:"10px 12px",textAlign:"center",borderRight:"1px solid #e5e7eb"}}><div style={C.chk(isSel)} onClick={()=>toggleSel(bill.id)}>{isSel&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}</div></td>;
                         if(k==="sr") return <TipCell key="sr" value={String(bill.srNo)} style={{color:"#9ca3af"}}/>;
-                        if(k==="vendor") return can("edit_fields")?<EditCell key="vendor" value={bill.vendorName} style={{fontWeight:600}} onSave={v=>quickUpdate(bill.id,"vendorName",v)}/>:<TipCell key="vendor" value={bill.vendorName} style={{fontWeight:600}}/>;
-                        if(k==="type") return <DropdownCell key="type" value={bill.vendorType} options={VENDOR_TYPES} isAdmin={can("edit_fields")} onSave={v=>quickUpdate(bill.id,"vendorType",v)}/>;
-                        if(k==="invoice") return can("edit_fields")?<EditCell key="invoice" value={bill.invoiceNumber} style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"invoiceNumber",v)}/>:<TipCell key="invoice" value={bill.invoiceNumber} style={{color:"#6b7280"}}/>;
-                        if(k==="amount") return can("edit_fields")?<EditCell key="amount" value={bill.totalAmount?String(bill.totalAmount):""} type="number" style={{textAlign:"right",fontWeight:600,color:"#111"}} onSave={v=>quickUpdate(bill.id,"totalAmount",v)}/>:<TipCell key="amount" value={amtStr} style={{textAlign:"right",fontWeight:600}}/>;
-                        if(k==="status") return <td key="status" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}><button onClick={()=>can("edit_status")&&toggleStatus(bill.id)} disabled={!can("edit_status")} title={`Mark as ${bill.paymentStatus==="Paid"?"Pending":"Paid"}`} style={{display:"inline-flex",alignItems:"center",gap:4,background:bill.paymentStatus==="Paid"?"#f0fdf4":"#fffbeb",color:bill.paymentStatus==="Paid"?"#16a34a":"#d97706",border:`1px solid ${bill.paymentStatus==="Paid"?"#86efac":"#fcd34d"}`,borderRadius:4,padding:"3px 9px",fontSize:11,fontWeight:500,cursor:"pointer"}}>{bill.paymentStatus==="Paid"?"✓":"⏳"} {bill.paymentStatus}</button></td>;
-                        if(k==="date") return can("edit_fields")?<EditCell key="date" value={bill.date} type="date" style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"date",v)}/>:<TipCell key="date" value={bill.date?fmtDate(bill.date):""} style={{color:"#6b7280"}}/>;
-                        if(k==="remarks") return <RemarksCell key="remarks" value={bill.remarks} isAdmin={can("edit_remarks")} onSave={v=>quickUpdate(bill.id,"remarks",v)}/>;
-                        if(k==="actions"&&(isAdmin||can("delete")||can("edit_fields")||can("edit_status"))) return(
-                          <td key="actions" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}>
-                            <div style={{display:"flex",gap:4,justifyContent:"flex-end"}}>
-                              <button onClick={()=>setViewBill(bill)} title="View bill details" style={{padding:"4px 8px",background:"transparent",border:"1px solid #bfdbfe",borderRadius:4,cursor:"pointer",fontSize:13}}>👁</button>
-                              {can("edit_fields")&&<button onClick={()=>editId===bill.id?(setEditId(null),setEditF({})):(setEditId(bill.id),setEditF({...bill}))} title="Full edit" style={{padding:"4px 8px",background:editId===bill.id?"#eff6ff":"transparent",border:"1px solid #e5e7eb",borderRadius:4,cursor:"pointer",fontSize:13}}>{editId===bill.id?"✕":"✏️"}</button>}
-                              {can("delete")&&<button onClick={()=>setDelTarget(bill.id)} title="Delete" style={{padding:"4px 8px",background:"transparent",border:"1px solid #fca5a5",borderRadius:4,cursor:"pointer",fontSize:13}}>🗑</button>}
-                            </div>
-                          </td>
-                        );
+                        if(k==="vendor") return isAdmin?<EditCell key="vendor" value={bill.vendorName} style={{fontWeight:600}} onSave={v=>quickUpdate(bill.id,"vendorName",v)}/>:<TipCell key="vendor" value={bill.vendorName} style={{fontWeight:600}}/>;
+                        if(k==="type") return <DropdownCell key="type" value={bill.vendorType} options={VENDOR_TYPES} isAdmin={isAdmin} onSave={v=>quickUpdate(bill.id,"vendorType",v)}/>;
+                        if(k==="invoice") return isAdmin?<EditCell key="invoice" value={bill.invoiceNumber} style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"invoiceNumber",v)}/>:<TipCell key="invoice" value={bill.invoiceNumber} style={{color:"#6b7280"}}/>;
+                        if(k==="amount") return isAdmin?<EditCell key="amount" value={bill.totalAmount?String(bill.totalAmount):""} type="number" style={{textAlign:"right",fontWeight:600,color:"#111"}} onSave={v=>quickUpdate(bill.id,"totalAmount",v)}/>:<TipCell key="amount" value={amtStr} style={{textAlign:"right",fontWeight:600}}/>;
+                        if(k==="status") return <td key="status" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}><button onClick={()=>toggleStatus(bill.id)} title={`Mark as ${bill.paymentStatus==="Paid"?"Pending":"Paid"}`} style={{display:"inline-flex",alignItems:"center",gap:4,background:bill.paymentStatus==="Paid"?"#f0fdf4":"#fffbeb",color:bill.paymentStatus==="Paid"?"#16a34a":"#d97706",border:`1px solid ${bill.paymentStatus==="Paid"?"#86efac":"#fcd34d"}`,borderRadius:4,padding:"3px 9px",fontSize:11,fontWeight:500,cursor:"pointer"}}>{bill.paymentStatus==="Paid"?"✓":"⏳"} {bill.paymentStatus}</button></td>;
+                        if(k==="date") return isAdmin?<EditCell key="date" value={bill.date} type="date" style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"date",v)}/>:<TipCell key="date" value={bill.date?fmtDate(bill.date):""} style={{color:"#6b7280"}}/>;
+                        if(k==="remarks") return <RemarksCell key="remarks" value={bill.remarks} isAdmin={isAdmin} onSave={v=>quickUpdate(bill.id,"remarks",v)}/>;
+                        if(k==="actions"&&isAdmin) return <td key="actions" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}><div style={{display:"flex",gap:4,justifyContent:"flex-end"}}><button onClick={()=>setViewBill(bill)} title="View bill details" style={{padding:"4px 8px",background:"transparent",border:"1px solid #bfdbfe",borderRadius:4,cursor:"pointer",fontSize:13}}>👁</button><button onClick={()=>editId===bill.id?(setEditId(null),setEditF({})):(setEditId(bill.id),setEditF({...bill}))} title="Full edit" style={{padding:"4px 8px",background:editId===bill.id?"#eff6ff":"transparent",border:"1px solid #e5e7eb",borderRadius:4,cursor:"pointer",fontSize:13}}>{editId===bill.id?"✕":"✏️"}</button><button onClick={()=>setDelTarget(bill.id)} title="Delete" style={{padding:"4px 8px",background:"transparent",border:"1px solid #fca5a5",borderRadius:4,cursor:"pointer",fontSize:13}}>🗑</button></div></td>;
                         return null;
                       })}
                     </tr>
-                    {(can("edit_fields")||isAdmin)&&editId===bill.id&&(
+                    {isAdmin&&editId===bill.id&&(
                       <tr key={`e-${bill.id}`} style={{background:"#eff6ff",borderBottom:"1px solid #e5e7eb"}}>
                         <td colSpan={10} style={{padding:"14px 16px 18px"}}>
                           <p style={{fontSize:11,color:"#6b7280",marginBottom:10,fontWeight:500}}>Full edit — all fields</p>
@@ -2149,8 +1822,17 @@ function App(){
 }
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
-
-
-
+</body>
+<script>
+// Register service worker for PWA
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").then(
+      reg=>console.log("SW registered:", reg.scope),
+      err=>console.log("SW failed:", err)
+    );
+  });
+}
+</script>
 </body>
 </html>
