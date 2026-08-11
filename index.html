@@ -384,8 +384,19 @@ function PendingDashboard({bills, onClose, onMarkPaid}){
   );
 }
 
+
+
+// Export shared globals for other scripts
+
+const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
+const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
+const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
+const hasPerm = window.__hasPerm||(()=>false);
+const buildRemark = window.__buildRemark||(()=>"");
+const appendRemark = window.__appendRemark||((e,n)=>n);
 </script>
 <script type="text/babel" data-presets="react">
+const {useState,useEffect,useRef,useCallback} = React;
 // ── BILL DETAIL MODAL ──
 function BillDetailModal({bill, onClose}){
   if(!bill) return null;
@@ -561,8 +572,17 @@ function BillDetailModal({bill, onClose}){
   );
 }
 
+
+
+const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
+const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
+const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
+const hasPerm = window.__hasPerm||(()=>false);
+const buildRemark = window.__buildRemark||(()=>"");
+const appendRemark = window.__appendRemark||((e,n)=>n);
 </script>
 <script type="text/babel" data-presets="react">
+const {useState,useEffect,useRef,useCallback} = React;
 // ── ITEMIZED EXPORT MODAL ──
 function ItemizedExportModal({bills, onClose}){
   const [fromDate,setFromDate]=useState("");
@@ -741,6 +761,16 @@ function ItemizedExportModal({bills, onClose}){
 }
 
 
+
+const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
+const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
+const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
+const hasPerm = window.__hasPerm||(()=>false);
+const buildRemark = window.__buildRemark||(()=>"");
+const appendRemark = window.__appendRemark||((e,n)=>n);
+</script>
+<script type="text/babel" data-presets="react">
+const {useState,useEffect,useRef,useCallback} = React;
 // ── USER MANAGEMENT MODAL ──
 function UserManagementModal({currentUser, onClose, onUsersUpdated}){
   const [users,setUsers]=useState([]);
@@ -977,8 +1007,17 @@ function UserManagementModal({currentUser, onClose, onUsersUpdated}){
     </div>
   );
 }
+
+
+const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
+const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
+const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
+const hasPerm = window.__hasPerm||(()=>false);
+const buildRemark = window.__buildRemark||(()=>"");
+const appendRemark = window.__appendRemark||((e,n)=>n);
 </script>
 <script type="text/babel" data-presets="react">
+const {useState,useEffect,useRef,useCallback} = React;
 // ── LOGIN SCREEN ──
 function LoginScreen({onLogin}){
   const [username,setUsername]=useState("");
@@ -1262,6 +1301,16 @@ function RemarksCell({value, onSave, isAdmin}){
   );
 }
 
+
+const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
+const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
+const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
+const hasPerm = window.__hasPerm||(()=>false);
+const buildRemark = window.__buildRemark||(()=>"");
+const appendRemark = window.__appendRemark||((e,n)=>n);
+</script>
+<script type="text/babel" data-presets="react">
+const {useState,useEffect,useRef,useCallback} = React;
 // ── CHANGE PASSWORD MODAL ──
 function ChangePasswordModal({currentUser, onClose, onSuccess}){
   const [tab,setTab]=useState("admin"); // which user's password to change
@@ -1417,8 +1466,16 @@ function ApiKeyModal({onSave, currentApiKey}){
     </div>
   );
 }
-</script>
+
+const VENDOR_TYPES = ["Bakery","Grocery","Beverage","Dairy","Meat & Seafood","Produce","Packaging","Cleaning","Equipment","Utilities","Other"];
+const ALL_PERMISSIONS = window.__ALL_PERMISSIONS||[];
+const PERMISSION_LABELS = window.__PERMISSION_LABELS||{};
+const hasPerm = window.__hasPerm||(()=>false);
+const buildRemark = window.__buildRemark||(()=>"");
+const appendRemark = window.__appendRemark||((e,n)=>n);</script>
 <script type="text/babel" data-presets="react">
+const {useState,useEffect,useRef,useCallback} = React;
+
 function App(){
   const [bills,setBills]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -1843,8 +1900,7 @@ function App(){
       <div className="resize-handle" onMouseDown={makeResize(k)} onClick={e=>e.stopPropagation()}><div className="rh-line" style={{width:2,height:"60%",background:"#d1d5db",borderRadius:1}}/></div>
     </th>
   );
-</script>
-<script type="text/babel" data-presets="react">
+
   return(
     <React.Fragment>
     {!appReady?(
@@ -2093,18 +2149,8 @@ function App(){
 }
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
-</body>
-<script>
-// Register service worker for PWA
-if("serviceWorker" in navigator){
-  window.addEventListener("load", ()=>{
-    navigator.serviceWorker.register("sw.js").then(
-      reg=>console.log("SW registered:", reg.scope),
-      err=>console.log("SW failed:", err)
-    );
-  });
-}
-</script>
+
+
 
 </body>
 </html>
