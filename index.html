@@ -1988,7 +1988,7 @@ function App(){
             <colgroup>{colOrder.filter(k=>k!=="chk"||isAdmin).map(k=><col key={k} style={{width:cols[k]||80}}/>)}</colgroup>
             <thead>
               <tr>
-                {colOrder.filter(k=>k!=="chk"||isAdmin).map(k=>{
+                {colOrder.filter(k=>k!=="chk"||(isAdmin||can("delete"))).map(k=>{
                   if(k==="thumb") return(
                     <th key="thumb" draggable onDragStart={e=>{e.stopPropagation();handleDragStart("thumb");}} onDragEnter={e=>{e.preventDefault();handleDragEnter("thumb");}} onDragOver={e=>e.preventDefault()} onDragEnd={handleDragEnd}
                       style={{width:cols.thumb,padding:0,position:"relative",borderRight:"1px solid #e5e7eb",background:dragOverCol.current==="thumb"?"#dbeafe":"#f9fafb",cursor:"grab",userSelect:"none",transition:"background 0.15s"}}>
@@ -2023,7 +2023,7 @@ function App(){
                 return(
                   <React.Fragment key={bill.id}>
                     <tr className={isSel?"sel":""} style={{background:isSel?"#fef2f2":newlyImportedIds.has(bill.id)?"#dcfce7":idx%2===0?"#fff":"#fafafa",transition:"background 2s ease"}}>
-                      {colOrder.filter(k=>k!=="chk"||isAdmin).map(k=>{
+                      {colOrder.filter(k=>k!=="chk"||(isAdmin||can("delete"))).map(k=>{
                         if(k==="thumb") return(
                           <td key="thumb" style={{padding:"6px 8px",textAlign:"center",borderRight:"1px solid #e5e7eb",overflow:"visible",cursor:"pointer"}} onClick={()=>setViewBill(bill)} title="Click to view bill details">
                             {bill.thumbnail?<img src={bill.thumbnail} style={{width:44,height:44,objectFit:"cover",borderRadius:6,border:"1px solid #e5e7eb",display:"block",margin:"0 auto"}}/>:<div style={{width:44,height:44,background:"#f3f4f6",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",fontSize:18}}>🧾</div>}
@@ -2038,11 +2038,19 @@ function App(){
                         if(k==="status") return <td key="status" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}><button onClick={()=>can("edit_status")&&toggleStatus(bill.id)} disabled={!can("edit_status")} title={`Mark as ${bill.paymentStatus==="Paid"?"Pending":"Paid"}`} style={{display:"inline-flex",alignItems:"center",gap:4,background:bill.paymentStatus==="Paid"?"#f0fdf4":"#fffbeb",color:bill.paymentStatus==="Paid"?"#16a34a":"#d97706",border:`1px solid ${bill.paymentStatus==="Paid"?"#86efac":"#fcd34d"}`,borderRadius:4,padding:"3px 9px",fontSize:11,fontWeight:500,cursor:"pointer"}}>{bill.paymentStatus==="Paid"?"✓":"⏳"} {bill.paymentStatus}</button></td>;
                         if(k==="date") return can("edit_fields")?<EditCell key="date" value={bill.date} type="date" style={{color:"#6b7280"}} onSave={v=>quickUpdate(bill.id,"date",v)}/>:<TipCell key="date" value={bill.date?fmtDate(bill.date):""} style={{color:"#6b7280"}}/>;
                         if(k==="remarks") return <RemarksCell key="remarks" value={bill.remarks} isAdmin={can("edit_remarks")} onSave={v=>quickUpdate(bill.id,"remarks",v)}/>;
-                        if(k==="actions"&&(isAdmin||can("delete")||can("edit_fields")||can("edit_status"))) return <td key="actions" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}><div style={{display:"flex",gap:4,justifyContent:"flex-end"}}><button onClick={()=>setViewBill(bill)} title="View bill details" style={{padding:"4px 8px",background:"transparent",border:"1px solid #bfdbfe",borderRadius:4,cursor:"pointer",fontSize:13}}>👁</button><button onClick={()=>can("edit_fields")&&(editId===bill.id?(setEditId(null),setEditF({})):(setEditId(bill.id),setEditF({...bill})))} title="Full edit" style={{display:can("edit_fields")?"":"none",padding:"4px 8px",background:editId===bill.id?"#eff6ff":"transparent",border:"1px solid #e5e7eb",borderRadius:4,cursor:"pointer",fontSize:13}}>{editId===bill.id?"✕":"✏️"}</button><button style={{padding:"4px 8px",background:editId===bill.id?"#eff6ff":"transparent",border:"1px solid #e5e7eb",borderRadius:4,cursor:"pointer",fontSize:13}}>{editId===bill.id?"✕":"✏️"}</button>{can("delete")&&<button onClick={()=>setDelTarget(bill.id)} title="Delete" style={{padding:"4px 8px",background:"transparent",border:"1px solid #fca5a5",borderRadius:4,cursor:"pointer",fontSize:13}}>🗑</button>}</div></td>;
+                        if(k==="actions"&&(isAdmin||can("delete")||can("edit_fields")||can("edit_status"))) return(
+                          <td key="actions" style={{padding:"10px 10px",textAlign:"right",borderRight:"1px solid #e5e7eb"}}>
+                            <div style={{display:"flex",gap:4,justifyContent:"flex-end"}}>
+                              <button onClick={()=>setViewBill(bill)} title="View bill details" style={{padding:"4px 8px",background:"transparent",border:"1px solid #bfdbfe",borderRadius:4,cursor:"pointer",fontSize:13}}>👁</button>
+                              {can("edit_fields")&&<button onClick={()=>editId===bill.id?(setEditId(null),setEditF({})):(setEditId(bill.id),setEditF({...bill}))} title="Full edit" style={{padding:"4px 8px",background:editId===bill.id?"#eff6ff":"transparent",border:"1px solid #e5e7eb",borderRadius:4,cursor:"pointer",fontSize:13}}>{editId===bill.id?"✕":"✏️"}</button>}
+                              {can("delete")&&<button onClick={()=>setDelTarget(bill.id)} title="Delete" style={{padding:"4px 8px",background:"transparent",border:"1px solid #fca5a5",borderRadius:4,cursor:"pointer",fontSize:13}}>🗑</button>}
+                            </div>
+                          </td>
+                        );
                         return null;
                       })}
                     </tr>
-                    {can("edit_fields")&&editId===bill.id&&(
+                    {(can("edit_fields")||isAdmin)&&editId===bill.id&&(
                       <tr key={`e-${bill.id}`} style={{background:"#eff6ff",borderBottom:"1px solid #e5e7eb"}}>
                         <td colSpan={10} style={{padding:"14px 16px 18px"}}>
                           <p style={{fontSize:11,color:"#6b7280",marginBottom:10,fontWeight:500}}>Full edit — all fields</p>
