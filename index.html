@@ -1407,6 +1407,8 @@ function App(){
   const [viewBill,setViewBill]=useState(null);
   const [showPaidPage,setShowPaidPage]=useState(false);
   const [showItemizedExport,setShowItemizedExport]=useState(false);
+  const [pwaInstallable,setPwaInstallable]=useState(false);
+  const [pwaInstalled,setPwaInstalled]=useState(false);
   const [showUserMgmt,setShowUserMgmt]=useState(false);
   const [appReady,setAppReady]=useState(false);
   const [dateSort,setDateSort]=useState("desc");
@@ -1440,6 +1442,14 @@ function App(){
 
       // App is ready
       setAppReady(true);
+
+      // Listen for PWA install availability
+      const onInstallable=()=>setPwaInstallable(true);
+      const onInstalled=()=>{setPwaInstallable(false);setPwaInstalled(true);};
+      window.addEventListener("pwa-installable",onInstallable);
+      window.addEventListener("pwa-installed",onInstalled);
+      // Check if already installable (prompt captured before React mounted)
+      if(window.__pwaInstallPrompt) setPwaInstallable(true);
 
       // Load bills in background
       loadBills();
@@ -1479,6 +1489,14 @@ function App(){
   };
   const handleLogin=(user)=>{localStorage.setItem(AUTH_LS,JSON.stringify(user));setCurrentUser(user);};
   const handleLogout=()=>{localStorage.removeItem(AUTH_LS);setCurrentUser(null);};
+
+  const handleInstallPWA=async()=>{
+    if(!window.__pwaInstallPrompt)return;
+    window.__pwaInstallPrompt.prompt();
+    const {outcome}=await window.__pwaInstallPrompt.userChoice;
+    if(outcome==="accepted"){setPwaInstallable(false);setPwaInstalled(true);}
+    window.__pwaInstallPrompt=null;
+  };
 
   const saveManualBill=async()=>{
     const errs={};
@@ -2035,6 +2053,36 @@ function App(){
       {delTarget==="bulk"&&(<div className="fade" style={{marginTop:12,padding:16,background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:10}}><p style={{fontWeight:700,color:"#dc2626",marginBottom:4}}>Delete {ns} selected bill{ns>1?"s":""}?</p><p style={{fontSize:13,color:"#6b7280",marginBottom:12}}>Permanently removed from cloud.</p><div style={{display:"flex",gap:8}}><button style={C.redBtn} onClick={delSel}>Delete {ns}</button><button style={C.outBtn} onClick={()=>setDelTarget(null)}>Cancel</button></div></div>)}
       {dupModal&&(<div className="fade" style={{marginTop:12,padding:16,background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10}}><p style={{fontWeight:700,marginBottom:4}}>⚠️ Duplicate bill detected</p><p style={{fontSize:13,color:"#6b7280",marginBottom:12}}>This matches an existing bill. Add it anyway?</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>{[{lbl:"Existing",b:dupModal.eb},{lbl:"New",b:dupModal.nb}].map(({lbl,b})=>(<div key={lbl} style={{background:"#fff",borderRadius:6,padding:"10px 12px",border:"1px solid #e5e7eb",fontSize:12}}><p style={{margin:"0 0 6px",fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase"}}>{lbl}</p>{[["Vendor",b.vendorName],["Invoice",b.invoiceNumber],["Date",b.date?fmtDate(b.date):"—"],["Amount",b.totalAmount?`₹${Number(b.totalAmount).toLocaleString("en-IN")}`:"—"]].map(([k,v])=>(<div key={k} style={{marginBottom:3}}><span style={{color:"#9ca3af"}}>{k}: </span><span style={{fontWeight:600}}>{v||"—"}</span></div>))}</div>))}</div><div style={{display:"flex",gap:8}}><button style={{...C.redBtn,background:"#d97706"}} onClick={()=>{setDupModal(null);dupModal.r(true);}}>Add anyway</button><button style={C.outBtn} onClick={()=>{setDupModal(null);dupModal.r(false);}}>Skip</button></div></div>)}
       {toast&&(<div className="fade" style={{marginTop:12,padding:"10px 16px",background:toast.t==="err"?"#fef2f2":toast.t==="warn"?"#fffbeb":"#f0fdf4",border:`1px solid ${toast.t==="err"?"#fca5a5":toast.t==="warn"?"#fcd34d":"#86efac"}`,borderRadius:8,fontSize:13,fontWeight:600,color:toast.t==="err"?"#dc2626":toast.t==="warn"?"#d97706":"#16a34a"}}>{toast.msg}</div>)}
+
+      {/* PWA Install Banner — fixed at bottom */}
+      {pwaInstallable&&!pwaInstalled&&(
+        <div className="fade" style={{position:"fixed",bottom:0,left:0,right:0,zIndex:1000,
+          background:"#1e3a5f",padding:"12px 20px",
+          display:"flex",alignItems:"center",justifyContent:"space-between",
+          boxShadow:"0 -4px 20px rgba(0,0,0,0.2)",flexWrap:"wrap",gap:10}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <span style={{fontSize:28}}>☕</span>
+            <div>
+              <p style={{fontWeight:700,color:"#fff",fontSize:14,marginBottom:2}}>Install CafeAmrut App</p>
+              <p style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>Add to your home screen for quick access</p>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,flexShrink:0}}>
+            <button onClick={handleInstallPWA}
+              style={{background:"#2563eb",color:"#fff",border:"none",borderRadius:8,
+                padding:"9px 20px",fontSize:14,fontWeight:700,cursor:"pointer",
+                display:"flex",alignItems:"center",gap:6}}>
+              ⬇ Install App
+            </button>
+            <button onClick={()=>setPwaInstallable(false)}
+              style={{background:"rgba(255,255,255,0.15)",color:"#fff",
+                border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,
+                padding:"9px 14px",fontSize:13,cursor:"pointer"}}>
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
     </div>}
     )}
     </React.Fragment>
@@ -2053,6 +2101,19 @@ if("serviceWorker" in navigator){
     );
   });
 }
+
+// Capture the PWA install prompt
+window.__pwaInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (e)=>{
+  e.preventDefault();
+  window.__pwaInstallPrompt = e;
+  // Notify React app that install is available
+  window.dispatchEvent(new Event("pwa-installable"));
+});
+window.addEventListener("appinstalled", ()=>{
+  window.__pwaInstallPrompt = null;
+  window.dispatchEvent(new Event("pwa-installed"));
+});
 </script>
 </body>
 </html>
